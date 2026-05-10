@@ -6,6 +6,7 @@ import { FeedPost } from "@/components/feed/FeedPost";
 import { PostComposer } from "@/components/feed/PostComposer";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
+import React from "react";
 
 import { useSession } from "next-auth/react";
 
@@ -201,9 +202,33 @@ export default function FeedPage() {
 
           {/* Posts Feed */}
           {loading ? (
-            <div className="flex flex-col items-center justify-center py-20">
-              <div className="w-10 h-10 border-2 border-amber border-t-transparent rounded-full animate-spin mb-4" />
-              <p className="text-sm text-text-muted">Loading your cinematic universe...</p>
+            <div className="flex flex-col gap-6 w-full animate-pulse">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-surface border border-border-default rounded-2xl p-5 flex flex-col gap-4 relative overflow-hidden">
+                  {/* Film strip edge */}
+                  <div className="absolute top-0 bottom-0 left-0 w-8 flex flex-col justify-between py-2 border-r border-white/5 bg-black/20">
+                    {[...Array(6)].map((_, j) => (
+                      <div key={j} className="w-4 h-3 mx-auto bg-white/10 rounded-[1px]"></div>
+                    ))}
+                  </div>
+                  {/* Shimmer overlay */}
+                  <div className="absolute inset-0 -translate-x-full animate-[shimmer_2s_infinite] bg-gradient-to-r from-transparent via-white/5 to-transparent"></div>
+                  
+                  <div className="pl-10 flex items-center gap-3 relative">
+                    <div className="w-11 h-11 rounded-full bg-white/10 shrink-0"></div>
+                    <div className="flex flex-col gap-2 flex-1">
+                      <div className="w-32 h-4 bg-white/10 rounded-md"></div>
+                      <div className="w-20 h-3 bg-white/5 rounded-md"></div>
+                    </div>
+                  </div>
+                  <div className="pl-10 flex flex-col gap-2 mt-2 relative">
+                    <div className="w-full h-4 bg-white/10 rounded-md"></div>
+                    <div className="w-5/6 h-4 bg-white/10 rounded-md"></div>
+                    <div className="w-4/6 h-4 bg-white/10 rounded-md"></div>
+                  </div>
+                  <div className="pl-10 mt-4 w-full h-48 bg-white/5 rounded-xl relative"></div>
+                </div>
+              ))}
             </div>
           ) : posts.length === 0 ? (
             <div className="flex flex-col items-center justify-center py-20 text-center bg-elevated/50 border border-white/5 rounded-2xl">
@@ -217,32 +242,44 @@ export default function FeedPage() {
               <p className="text-xs text-text-muted/60">Use the composer above to create your first post ↑</p>
             </div>
           ) : (
-            posts.map((post) => {
+            posts.map((post, index) => {
               const author = post.author;
               const isOwner = currentUser?.id === (author?.id || post.user_id);
 
+              const separator = index === 2 ? (
+                <div key={`sep-${index}`} className="flex items-center justify-center my-2 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
+                  <span className="px-4 py-1.5 rounded-full border border-amber/30 bg-amber/10 text-amber text-[10px] font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(245,166,35,0.15)]">Trending in your network</span>
+                </div>
+              ) : index === 5 ? (
+                <div key={`sep-${index}`} className="flex items-center justify-center my-2 opacity-0 animate-[fadeIn_0.5s_ease-out_forwards]">
+                  <span className="px-4 py-1.5 rounded-full border border-amber/30 bg-amber/10 text-amber text-[10px] font-bold uppercase tracking-widest shadow-[0_0_15px_rgba(245,166,35,0.15)]">From creators you follow</span>
+                </div>
+              ) : null;
+
               return (
-                <FeedPost
-                  key={post.id}
-                  currentUser={currentUser ? {
-                    id: currentUser.id,
-                    username: currentUser.username,
-                    initials: userInitials,
-                  } : undefined}
-                  onDelete={() => handleDelete(post.id)}
-                  onEdit={(id, content) => handleUpdate(id, content)}
-                  post={{
-                    ...post,
-                    name: author?.display_name || post.name || "Anonymous",
-                    username: author?.username || post.username || "creator",
-                    initials: (author?.display_name || post.name || "A").substring(0, 2).toUpperCase(),
-                    time: post.time || formatTime(post.created_at),
-                    likes: post.like_count || post.likes || 0,
-                    comments: post.comment_count || post.comments || 0,
-                    reposts: post.repost_count || post.reposts || 0,
-                    role: "Creator",
-                  }}
-                />
+                <React.Fragment key={post.id}>
+                  {separator}
+                  <FeedPost
+                    currentUser={currentUser ? {
+                      id: currentUser.id,
+                      username: currentUser.username,
+                      initials: userInitials,
+                    } : undefined}
+                    onDelete={() => handleDelete(post.id)}
+                    onEdit={(id, content) => handleUpdate(id, content)}
+                    post={{
+                      ...post,
+                      name: author?.display_name || post.name || "Anonymous",
+                      username: author?.username || post.username || "creator",
+                      initials: (author?.display_name || post.name || "A").substring(0, 2).toUpperCase(),
+                      time: post.time || formatTime(post.created_at),
+                      likes: post.like_count || post.likes || 0,
+                      comments: post.comment_count || post.comments || 0,
+                      reposts: post.repost_count || post.reposts || 0,
+                      role: "Creator",
+                    }}
+                  />
+                </React.Fragment>
               );
             })
           )}

@@ -2,7 +2,6 @@
 
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
-import { createClient } from "@/lib/supabase/client";
 import { CoverBanner } from "@/components/profile/CoverBanner";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
 import { StatsRow } from "@/components/profile/StatsRow";
@@ -20,24 +19,12 @@ export default function CreatorProfilePage() {
     const fetchProfile = async () => {
       if (!username) return;
       setLoading(true);
-      const supabase = createClient();
       
       try {
-        // Fetch profile by username
-        const { data: userData, error } = await supabase
-          .from("users")
-          .select("*")
-          .eq("username", username)
-          .single();
-
-        if (userData) {
+        const res = await fetch(`/api/user/profile/${username}`);
+        if (res.ok) {
+          const userData = await res.json();
           setProfile(userData);
-          
-          // Check if current user is owner
-          const { data: { user: authUser } } = await supabase.auth.getUser();
-          if (authUser && authUser.id === userData.id) {
-            setIsOwner(true);
-          }
         }
       } catch (error) {
         console.error("Error fetching creator profile:", error);

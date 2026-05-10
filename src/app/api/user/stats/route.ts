@@ -1,4 +1,4 @@
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
@@ -8,16 +8,28 @@ export const dynamic = 'force-dynamic';
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    const user = session?.user;
-    const supabase = await createClient();
+    let userEmail = session?.user?.email;
+    let userId = (session?.user as any)?.id;
     
+    // Resolve UUID if needed
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId || "");
+    const supabaseAdmin = createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+
+    if (!isUuid && userEmail) {
+      const { data: profile } = await supabaseAdmin.from("users").select("id").eq("email", userEmail).maybeSingle();
+      if (profile) userId = profile.id;
+    }
+
     const { searchParams } = new URL(req.url);
-    const targetUserId = searchParams.get('userId') || (user as any)?.id;
+    const targetUserId = searchParams.get('userId') || userId;
 
     if (!targetUserId) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     // Try to get the user profile
-    const { data: profile } = await supabase
+    const { data: profile } = await supabaseAdmin
       .from("users")
       .select("*")
       .eq("id", targetUserId)
@@ -28,50 +40,50 @@ export async function GET(req: Request) {
     // ─── Real-time Counts ───
     
     // Count Followers (people following ME)
-    const { count: followerCount } = await supabase
-      .from("user_follows")
+    const { count: followerCount } = await supabaseAdmin
+      .from("follows")
       .select("*", { count: "exact", head: true })
       .eq("following_id", targetUserId);
 
     // Count Following (people I follow)
-    const { count: followingCount } = await supabase
-      .from("user_follows")
+    const { count: followingCount } = await supabaseAdmin
+      .from("follows")
       .select("*", { count: "exact", head: true })
       .eq("follower_id", targetUserId);
 
     // Count Scripts
-    const { count: scriptCount } = await supabase
+    const { count: scriptCount } = await supabaseAdmin
       .from("scripts")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId);
 
     // Count Films
-    const { count: filmCount } = await supabase
+    const { count: filmCount } = await supabaseAdmin
       .from("films")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId);
 
     // Count Posts
-    const { count: postCount } = await supabase
+    const { count: postCount } = await supabaseAdmin
       .from("posts")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId)
       .eq("is_deleted", false);
 
     // Count Saved
-    const { count: savedCount } = await supabase
+    const { count: savedCount } = await supabaseAdmin
       .from("post_bookmarks")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId);
 
     // Count Badges
-    const { count: badgeCount } = await supabase
+    const { count: badgeCount } = await supabaseAdmin
       .from("user_badges")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId);
 
     // Count Awards (Certificates)
-    const { count: awardCount } = await supabase
+    const { count: awardCount } = await supabaseAdmin
       .from("certificates")
       .select("*", { count: "exact", head: true })
       .eq("user_id", targetUserId);

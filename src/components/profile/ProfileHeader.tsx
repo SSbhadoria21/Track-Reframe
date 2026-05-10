@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import Cropper from "react-easy-crop";
 import getCroppedImg from "@/utils/cropImage";
 import { createClient } from "@/lib/supabase/client";
+import { ProfileActions } from "./ProfileActions";
 
 interface ProfileHeaderProps {
   userId: string;
@@ -140,7 +141,7 @@ export function ProfileHeader({
         </div>
 
         {/* Edit profile button */}
-        {isOwner && (
+        {isOwner ? (
           <div className="md:pt-8 shrink-0">
             <button 
               onClick={() => setIsEditModalOpen(true)}
@@ -149,6 +150,8 @@ export function ProfileHeader({
               Edit Profile
             </button>
           </div>
+        ) : (
+          <ProfileActions targetUserId={userId} />
         )}
       </div>
 

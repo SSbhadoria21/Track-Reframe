@@ -17,7 +17,7 @@ async function ensureUserProfile(user: any) {
     .from("users")
     .select("id")
     .eq("id", user.id)
-    .single();
+    .maybeSingle();
 
   if (!profile) {
     const displayName = user.name || "Creator";
@@ -44,7 +44,7 @@ export async function GET() {
       .from("posts")
       .select(`
         *,
-        author:user_id (
+        author:users (
           id,
           display_name,
           username,
@@ -81,7 +81,7 @@ export async function GET() {
           .eq("user_id", user.id)
           .in("post_id", postIds),
         supabaseAdmin
-          .from("user_follows")
+          .from("follows")
           .select("following_id")
           .eq("follower_id", user.id)
           .in("following_id", authorIds),
@@ -93,12 +93,22 @@ export async function GET() {
     }
 
     // Attach interaction status to each post
-    const enrichedPosts = (posts || []).map((post: any) => ({
+    let enrichedPosts = (posts || []).map((post: any) => ({
       ...post,
       user_liked: userLikes.has(post.id),
       user_bookmarked: userBookmarks.has(post.id),
       is_following: followedUserIds.has(post.user_id),
     }));
+
+    if (followedUserIds.size > 0) {
+      // Boost followed users by adding 3 days to their timestamp score
+      const boostMs = 3 * 24 * 60 * 60 * 1000;
+      enrichedPosts.sort((a, b) => {
+        const scoreA = new Date(a.created_at).getTime() + (a.is_following ? boostMs : 0);
+        const scoreB = new Date(b.created_at).getTime() + (b.is_following ? boostMs : 0);
+        return scoreB - scoreA;
+      });
+    }
 
     return Response.json({ posts: enrichedPosts });
   } catch (err: any) {
@@ -120,21 +130,24 @@ export async function POST(req: NextRequest) {
     await ensureUserProfile(user);
 
     const body = await req.json();
-    const { content, type, genre_tags, media_url, media_type } = body;
+    const { content, type, genre_tags, media_url, media_type, audience, script_content, film_link } = body;
 
-    if (!content?.trim()) {
-      return Response.json({ error: "Post content cannot be empty" }, { status: 400 });
+    if (!content?.trim() && !media_url && !script_content && !film_link) {
+      return Response.json({ error: "Post cannot be completely empty" }, { status: 400 });
     }
 
     const { data, error } = await supabaseAdmin
       .from("posts")
       .insert({
         user_id: user.id,
-        content: content.trim(),
+        content: content?.trim() || "",
         type: type || "text",
         genre_tags: genre_tags || [],
         media_url: media_url || null,
         media_type: media_type || null,
+        audience: audience || 'public',
+        script_content: script_content || null,
+        film_link: film_link || null,
         is_deleted: false,
         like_count: 0,
         comment_count: 0,
@@ -142,7 +155,7 @@ export async function POST(req: NextRequest) {
       })
       .select(`
         *,
-        author:user_id (
+        author:users (
           id,
           display_name,
           username,
@@ -166,7 +179,6 @@ export async function POST(req: NextRequest) {
 // PATCH /api/posts — Update a post (owner only)
 export async function PATCH(req: NextRequest) {
   try {
-    const supabase = await createClient();
     const session = await getServerSession(authOptions);
     const user = session?.user as any;
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -178,7 +190,7 @@ export async function PATCH(req: NextRequest) {
       return Response.json({ error: "ID and content required" }, { status: 400 });
     }
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("posts")
       .update({ content: content.trim() })
       .eq("id", id)
@@ -198,7 +210,6 @@ export async function PATCH(req: NextRequest) {
 // DELETE /api/posts — Delete a post (owner only)
 export async function DELETE(req: NextRequest) {
   try {
-    const supabase = await createClient();
     const session = await getServerSession(authOptions);
     const user = session?.user as any;
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -206,7 +217,7 @@ export async function DELETE(req: NextRequest) {
     const postId = req.nextUrl.searchParams.get("id");
     if (!postId) return Response.json({ error: "Post ID required" }, { status: 400 });
 
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("posts")
       .update({ is_deleted: true })
       .eq("id", postId)

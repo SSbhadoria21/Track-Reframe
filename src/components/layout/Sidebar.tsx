@@ -35,7 +35,7 @@ export function Sidebar() {
     
     const fetchStats = async () => {
       try {
-        const res = await fetch("/api/user/stats");
+        const res = await fetch("/api/user/stats", { cache: "no-store" });
         if (res.ok) {
           const data = await res.json();
           setStats({
@@ -103,11 +103,11 @@ export function Sidebar() {
         .channel(channelName)
         .on(
           'postgres_changes',
-          { event: '*', schema: 'public', table: 'user_follows', filter: `following_id=eq.${profile.id}` },
+          { event: '*', schema: 'public', table: 'follows', filter: `following_id=eq.${profile.id}` },
           async () => {
             if (!isMounted) return;
             // Re-fetch stats when someone follows/unfollows you
-            const res = await fetch("/api/user/stats");
+            const res = await fetch("/api/user/stats", { cache: "no-store" });
             if (res.ok && isMounted) {
               const data = await res.json();
               setStats((prev) => ({ ...prev, followers: data.stats.followers || 0 }));

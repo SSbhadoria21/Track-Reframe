@@ -83,44 +83,19 @@ export default function OnboardingPage() {
     setLoading(true);
     setError(null);
     try {
-      const supabase = createClient();
-      let userId = (session?.user as any)?.id;
-      const userEmail = session?.user?.email;
+      const res = await fetch("/api/user/onboard", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          username,
+          selectedCraft,
+          tagline
+        })
+      });
 
-      // Ensure we have a valid UUID for the database update
-      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId || "");
-      
-      if (!isUuid && userEmail) {
-        const { data: profile } = await supabase
-          .from("users")
-          .select("id")
-          .eq("email", userEmail)
-          .single();
-        
-        if (profile) userId = profile.id;
-      }
-
-      if (!userId) throw new Error("Could not find your user ID. Please sign in again.");
-
-      // Use upsert to handle cases where the profile row might not exist yet
-      const { error: updateErr } = await supabase
-        .from("users")
-        .upsert({
-          id: userId,
-          username: username.toLowerCase().replace(/\s+/g, "_"),
-          display_name: session?.user?.name || username,
-          email: session?.user?.email,
-          roles: [selectedCraft],
-          bio: tagline,
-          onboarding_complete: true,
-          updated_at: new Date().toISOString(),
-        }, { onConflict: 'id' });
-
-      if (updateErr) {
-        if (updateErr.code === '23505') {
-          throw new Error("This username is already taken. Please try another one.");
-        }
-        throw updateErr;
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.error || "Something went wrong.");
       }
 
       // Force a short wait to let the DB synchronize

@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
 import Link from "next/link";
+import { toast } from "react-hot-toast";
 
 export function TenStarRating() {
   const [hoveredStar, setHoveredStar] = useState<number | null>(null);
@@ -54,6 +55,8 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
   const [editContent, setEditContent] = useState(post.content);
+  const [scriptExpanded, setScriptExpanded] = useState(false);
+  const [repostCount, setRepostCount] = useState(post.repost_count || post.reposts || 0);
 
   const isOwner = currentUser?.id === (post.author?.id || post.user_id);
 
@@ -85,6 +88,28 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
       if (!res.ok) setSaved(prev);
     } catch { setSaved(prev); }
     window.dispatchEvent(new CustomEvent('postSaved', { detail: { isSaved: !prev } }));
+  };
+
+  // ─── Repost ───
+  const handleRepost = async () => {
+    const quote = prompt("Add a quote to your repost (optional):");
+    if (quote === null) return;
+    setRepostCount((c: number) => c + 1);
+    try {
+      const res = await fetch("/api/posts/repost", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ post_id: post.id, quote_content: quote }),
+      });
+      if (!res.ok) setRepostCount((c: number) => c - 1);
+      else toast.success("Reposted successfully!");
+    } catch { setRepostCount((c: number) => c - 1); }
+  };
+
+  // ─── Share ───
+  const handleShare = () => {
+    navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
+    toast.success("Link copied to clipboard!");
   };
 
   // ─── Realtime Subscriptions ───
@@ -185,9 +210,9 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
   };
 
   return (
-    <div className={`bg-surface border rounded-2xl p-5 flex flex-col gap-4 relative transition-colors hover:bg-elevated ${post.isCompetition ? 'border-l-2 border-l-amber border-y-border-default border-r-border-default glow-amber' : 'border-border-default'}`}>
+    <div className={`bg-surface border rounded-2xl p-5 flex flex-col gap-4 relative transition-colors hover:bg-elevated ${post.is_competition_entry || post.isCompetition ? 'border-l-2 border-l-amber border-y-border-default border-r-border-default glow-amber' : 'border-border-default'}`}>
       
-      {post.isCompetition && (
+      {(post.is_competition_entry || post.isCompetition) && (
         <div className="absolute top-0 right-0 bg-amber text-[#0A0A0F] text-[10px] font-bold px-3 py-1 rounded-bl-lg flex items-center gap-1 shadow-md">
           <svg className="w-3 h-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6" /><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18" /><path d="M4 22h16" /><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22" /><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22" /><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z" /></svg>
           Competition Entry
@@ -261,6 +286,40 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
         <p className="text-sm text-text-secondary leading-relaxed">{post.content}</p>
       )}
 
+      {/* SCRIPT TEASER */}
+      {post.script_content && (
+        <div className="mt-3 relative rounded-xl border border-white/10 bg-black/50 p-4 font-mono text-sm leading-relaxed text-white/90 overflow-hidden" style={{ fontFamily: 'Courier New, Courier, monospace' }}>
+          <div className={scriptExpanded ? "" : "max-h-48"}>
+            {post.script_content.split('\n').map((line: string, i: number) => (
+              <div key={i} className="min-h-[1.5em]">{line}</div>
+            ))}
+          </div>
+          {!scriptExpanded && (
+            <>
+              <div className="absolute bottom-0 left-0 right-0 h-24 bg-gradient-to-t from-black/80 to-transparent backdrop-blur-[2px]" />
+              <button onClick={() => setScriptExpanded(true)} className="absolute bottom-4 left-1/2 -translate-x-1/2 px-4 py-2 bg-indigo/20 border border-indigo/40 text-indigo rounded-full text-xs font-bold uppercase tracking-widest hover:bg-indigo hover:text-white transition-colors z-10 shadow-lg shadow-black/50">
+                View Full Script
+              </button>
+            </>
+          )}
+        </div>
+      )}
+
+      {/* FILM LINK */}
+      {post.film_link && !post.media_url && (
+        <div className="mt-2 rounded-xl overflow-hidden border border-white/10 bg-black/40">
+           <a href={post.film_link} target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 hover:bg-white/5 transition-colors group">
+             <div className="w-12 h-12 rounded bg-amber/20 flex items-center justify-center text-amber group-hover:scale-110 transition-transform">
+               <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
+             </div>
+             <div className="flex-1 min-w-0">
+               <h4 className="text-sm font-bold text-white group-hover:text-amber transition-colors">Watch Film</h4>
+               <p className="text-xs text-text-muted truncate">{post.film_link}</p>
+             </div>
+           </a>
+        </div>
+      )}
+
       {/* COMPETITION APPLY BUTTON */}
       {post.competition_id && !post.is_competition_entry && (
         <div className="mt-2">
@@ -332,14 +391,26 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
 
       {/* FOOTER ACTIONS */}
       <div className="flex items-center justify-between pt-2 border-t border-border-default">
-        <div className="flex items-center gap-4">
-          {/* Like — persisted */}
+        <div className="flex items-center gap-5">
+          {/* Like */}
           <button onClick={handleLike} className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${liked ? "text-amber" : "text-text-muted hover:text-white"}`}>
             <motion.svg animate={liked ? { scale: [1, 1.4, 1] } : { scale: 1 }} transition={{ duration: 0.4, ease: "easeInOut" }}
               className={`w-5 h-5 ${liked ? "fill-amber" : "fill-none"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
             </motion.svg>
-            {likeCount}
+            <div className="overflow-hidden h-4 flex items-center">
+              <AnimatePresence mode="popLayout">
+                <motion.span key={likeCount} initial={{ y: 15, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: -15, opacity: 0 }} transition={{ duration: 0.3 }} className="inline-block">
+                  {likeCount}
+                </motion.span>
+              </AnimatePresence>
+            </div>
+          </button>
+
+          {/* Repost */}
+          <button onClick={handleRepost} className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-green-400 transition-colors">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="17 1 21 5 17 9"></polyline><path d="M3 11V9a4 4 0 0 1 4-4h14"></path><polyline points="7 23 3 19 7 15"></polyline><path d="M21 13v2a4 4 0 0 1-4 4H3"></path></svg>
+            {repostCount > 0 && <span className="inline-block">{repostCount}</span>}
           </button>
 
           {/* Comment */}
@@ -347,12 +418,16 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
             {commentCount}
           </button>
+
+          {/* Share */}
+          <button onClick={handleShare} className="flex items-center gap-1.5 text-xs font-medium text-text-muted hover:text-blue-400 transition-colors">
+            <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="18" cy="5" r="3"></circle><circle cx="6" cy="12" r="3"></circle><circle cx="18" cy="19" r="3"></circle><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"></line><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"></line></svg>
+          </button>
         </div>
 
         {/* Bookmark — persisted */}
-        <button onClick={handleSave} className={`p-2 transition-colors flex items-center gap-1.5 text-xs font-medium ${saved ? "text-amber" : "text-text-muted hover:text-white"}`}>
-          <svg className={`w-5 h-5 ${saved ? "fill-amber" : "fill-none"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
-          {saved ? "Saved" : "Save"}
+        <button onClick={handleSave} className={`p-2 transition-colors flex items-center gap-1.5 text-xs font-medium ${saved ? "text-indigo" : "text-text-muted hover:text-white"}`}>
+          <svg className={`w-5 h-5 ${saved ? "fill-indigo" : "fill-none"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </button>
       </div>
 

@@ -1,54 +1,97 @@
-import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { NextResponse } from "next/server";
+import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
-// POST /api/user/follow — Toggle follow status
-export async function POST(req: NextRequest) {
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+export async function GET(req: Request) {
   try {
-    const supabase = await createClient();
     const session = await getServerSession(authOptions);
-    const user = session?.user as any;
-    if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
+    if (!session?.user) return NextResponse.json({ following: false });
+
+    const { searchParams } = new URL(req.url);
+    const targetId = searchParams.get('targetId');
+    if (!targetId) return NextResponse.json({ error: "targetId required" }, { status: 400 });
+
+    let userId = (session.user as any).id;
+    const userEmail = session.user?.email;
+
+    // Resolve UUID if needed
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId || "");
+    if (!isUuid && userEmail) {
+      const { data: profile } = await supabaseAdmin.from("users").select("id").eq("email", userEmail).maybeSingle();
+      if (profile) userId = profile.id;
+    }
+
+    const { data } = await supabaseAdmin
+      .from("follows")
+      .select("id")
+      .eq("follower_id", userId)
+      .eq("following_id", targetId)
+      .maybeSingle();
+
+    return NextResponse.json({ following: !!data });
+  } catch (err: any) {
+    return NextResponse.json({ error: err.message }, { status: 500 });
+  }
+}
+
+export async function POST(req: Request) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const { target_user_id } = await req.json();
-    if (!target_user_id) return Response.json({ error: "target_user_id required" }, { status: 400 });
-    if (target_user_id === user.id) return Response.json({ error: "Cannot follow yourself" }, { status: 400 });
+    if (!target_user_id) return NextResponse.json({ error: "target_user_id required" }, { status: 400 });
 
-    // Check if already following
-    const { data: existing } = await supabase
-      .from("user_follows")
+    let userId = (session.user as any).id;
+    const userEmail = session.user?.email;
+
+    // Resolve UUID if needed
+    const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(userId || "");
+    if (!isUuid && userEmail) {
+      const { data: profile } = await supabaseAdmin.from("users").select("id").eq("email", userEmail).maybeSingle();
+      if (profile) userId = profile.id;
+    }
+
+    if (target_user_id === userId) return NextResponse.json({ error: "Cannot follow yourself" }, { status: 400 });
+
+    const { data: existing } = await supabaseAdmin
+      .from("follows")
       .select("id")
-      .eq("follower_id", user.id)
+      .eq("follower_id", userId)
       .eq("following_id", target_user_id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       // Unfollow
-      await supabase.from("user_follows").delete().eq("id", existing.id);
-      return Response.json({ following: false });
+      const { error } = await supabaseAdmin.from("follows").delete().eq("id", existing.id);
+      if (error) throw error;
+      return NextResponse.json({ following: false });
     } else {
       // Follow
-      await supabase.from("user_follows").insert({ 
-        follower_id: user.id, 
-        following_id: target_user_id 
-      });
-
-      // Notify the target user
-      const displayName = user.name || "Someone";
-      await supabase.from("notifications").insert({
+      const { error } = await supabaseAdmin.from("follows").insert({ follower_id: userId, following_id: target_user_id });
+      if (error) throw error;
+      
+      const { data: userProfile } = await supabaseAdmin.from("users").select("display_name").eq("id", userId).single();
+      const displayName = userProfile?.display_name || "Someone";
+      
+      await supabaseAdmin.from("notifications").insert({
         user_id: target_user_id,
-        actor_id: user.id,
+        actor_id: userId,
         type: "follow",
         title: `${displayName} started following you`,
         content: `Connect and collaborate on your next project!`,
-        target_id: user.id
+        related_entity_id: userId
       });
 
-      return Response.json({ following: true });
+      return NextResponse.json({ following: true });
     }
   } catch (err: any) {
-    console.error("Follow error:", err);
-    return Response.json({ error: err.message }, { status: 500 });
+    return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }

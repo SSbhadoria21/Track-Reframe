@@ -1,12 +1,16 @@
 import { NextRequest } from "next/server";
-import { createClient } from "@/lib/supabase/server";
+import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+
+const supabaseAdmin = createClient(
+  process.env.SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
 
 // POST /api/posts/like — Toggle like on a post
 export async function POST(req: NextRequest) {
   try {
-    const supabase = await createClient();
     const session = await getServerSession(authOptions);
     const user = session?.user as any;
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,7 +20,7 @@ export async function POST(req: NextRequest) {
 
     // Helper for broadcasting changes instantly
     const broadcastChange = async (type: 'like' | 'comment', newCount: number) => {
-      await supabase.channel(`post_changes_${post_id}`).send({
+      await supabaseAdmin.channel(`post_changes_${post_id}`).send({
         type: 'broadcast',
         event: 'metrics_updated',
         payload: { type, count: newCount }
@@ -24,32 +28,32 @@ export async function POST(req: NextRequest) {
     };
 
     // Check if already liked
-    const { data: existing } = await supabase
+    const { data: existing } = await supabaseAdmin
       .from("post_likes")
       .select("id")
       .eq("post_id", post_id)
       .eq("user_id", user.id)
-      .single();
+      .maybeSingle();
 
     if (existing) {
       // Unlike
-      await supabase.from("post_likes").delete().eq("id", existing.id);
+      await supabaseAdmin.from("post_likes").delete().eq("id", existing.id);
       
       // Get new count and broadcast
-      const { data: post } = await supabase.from("posts").select("like_count").eq("id", post_id).single();
+      const { data: post } = await supabaseAdmin.from("posts").select("like_count").eq("id", post_id).maybeSingle();
       if (post) await broadcastChange('like', post.like_count);
 
       return Response.json({ liked: false });
     } else {
       // Like
-      await supabase.from("post_likes").insert({ post_id, user_id: user.id });
+      await supabaseAdmin.from("post_likes").insert({ post_id, user_id: user.id });
 
       // Notify Post Owner
-      const { data: post } = await supabase
+      const { data: post } = await supabaseAdmin
         .from("posts")
         .select("user_id, content, like_count")
         .eq("id", post_id)
-        .single();
+        .maybeSingle();
 
       if (post) {
         // Broadcast the new count instantly
@@ -57,7 +61,7 @@ export async function POST(req: NextRequest) {
 
         if (post.user_id !== user.id) {
           const displayName = user.name || "Someone";
-          await supabase.from("notifications").insert({
+          await supabaseAdmin.from("notifications").insert({
             user_id: post.user_id,
             actor_id: user.id,
             type: "like",
@@ -77,6 +81,6 @@ export async function POST(req: NextRequest) {
 }
 
 async function getCount(supabase: any, postId: string, field: string) {
-  const { data } = await supabase.from("posts").select(field).eq("id", postId).single();
+  const { data } = await supabase.from("posts").select(field).eq("id", postId).maybeSingle();
   return data?.[field] || 0;
 }

@@ -24,6 +24,13 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
   const [mediaFile, setMediaFile] = useState<File | null>(null);
   const [mediaPreview, setMediaPreview] = useState<string | null>(null);
   const [mediaType, setMediaType] = useState<'image' | 'video' | null>(null);
+  const [audience, setAudience] = useState<'public' | 'followers'>('public');
+  const [scriptContent, setScriptContent] = useState<string | null>(null);
+  const [filmLink, setFilmLink] = useState<string | null>(null);
+  const [showScriptInput, setShowScriptInput] = useState(false);
+  const [showFilmInput, setShowFilmInput] = useState(false);
+  const [tempScript, setTempScript] = useState("");
+  const [tempFilmLink, setTempFilmLink] = useState("");
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const toggleTag = (tag: string) => {
@@ -55,6 +62,10 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
     setMediaFile(null);
     setMediaPreview(null);
     setMediaType(null);
+    setScriptContent(null);
+    setFilmLink(null);
+    setShowScriptInput(false);
+    setShowFilmInput(false);
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
@@ -67,22 +78,21 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
       let mediaUrl = null;
 
       if (mediaFile) {
-        const supabase = createClient();
-        const fileExt = mediaFile.name.split('.').pop();
-        const fileName = `${Math.random()}.${fileExt}`;
-        const filePath = `${fileName}`;
+        const formData = new FormData();
+        formData.append("file", mediaFile);
 
-        const { error: uploadError, data } = await supabase.storage
-            .from('posts')
-            .upload(filePath, mediaFile);
+        const uploadRes = await fetch("/api/posts/upload", {
+          method: "POST",
+          body: formData,
+        });
 
-        if (uploadError) throw uploadError;
-        
-        const { data: { publicUrl } } = supabase.storage
-            .from('posts')
-            .getPublicUrl(filePath);
-            
-        mediaUrl = publicUrl;
+        if (!uploadRes.ok) {
+          const uploadErr = await uploadRes.json();
+          throw new Error(uploadErr.error || "Upload failed");
+        }
+
+        const { url } = await uploadRes.json();
+        mediaUrl = url;
       }
 
       const res = await fetch("/api/posts", {
@@ -90,10 +100,13 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           content: content.trim(),
-          type: "text",
+          type: scriptContent ? "script" : filmLink ? "film" : "text",
           media_url: mediaUrl,
           media_type: mediaType,
           genre_tags: selectedTags,
+          audience,
+          script_content: scriptContent,
+          film_link: filmLink,
         }),
       });
 
@@ -145,6 +158,36 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
             rows={isExpanded ? 3 : 1}
             className="w-full bg-transparent text-sm text-white placeholder:text-text-muted/50 resize-none focus:outline-none leading-relaxed"
           />
+
+          {/* Script / Film Link Input Areas */}
+          <AnimatePresence>
+            {showScriptInput && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-2 relative">
+                <textarea
+                  value={tempScript}
+                  onChange={(e) => { setTempScript(e.target.value); setScriptContent(e.target.value); }}
+                  placeholder="Paste your screenplay scene here..."
+                  className="w-full bg-black/40 border border-white/10 rounded-xl p-3 font-mono text-xs text-white/80 placeholder:text-white/30 resize-none h-32 focus:outline-none focus:border-indigo"
+                />
+                <button onClick={() => { setShowScriptInput(false); setTempScript(""); setScriptContent(null); }} className="absolute top-2 right-2 w-6 h-6 bg-black/60 rounded-full flex items-center justify-center text-white hover:bg-error transition-colors"><XIcon className="w-3 h-3" /></button>
+              </motion.div>
+            )}
+            {showFilmInput && (
+              <motion.div initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }} exit={{ opacity: 0, height: 0 }} className="mt-2 relative">
+                <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-2 focus-within:border-amber transition-colors">
+                  <FilmIcon className="w-4 h-4 text-amber/60 ml-2" />
+                  <input
+                    type="url"
+                    value={tempFilmLink}
+                    onChange={(e) => { setTempFilmLink(e.target.value); setFilmLink(e.target.value); }}
+                    placeholder="https://vimeo.com/..."
+                    className="w-full bg-transparent text-xs text-white placeholder:text-white/30 focus:outline-none p-1"
+                  />
+                </div>
+                <button onClick={() => { setShowFilmInput(false); setTempFilmLink(""); setFilmLink(null); }} className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center text-text-muted hover:text-error transition-colors"><XIcon className="w-4 h-4" /></button>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           {/* Media Preview */}
           <AnimatePresence>
@@ -211,28 +254,50 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
             </div>
 
             {/* Footer */}
-            <div className="flex items-center justify-between px-4 py-3 border-t border-white/[0.04]">
-              <div className="flex items-center gap-3">
+            <div className="flex flex-col sm:flex-row items-center justify-between px-4 py-3 border-t border-white/[0.04] gap-3">
+              <div className="flex items-center gap-3 w-full sm:w-auto overflow-x-auto scrollbar-hide">
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 rounded-xl bg-white/5 text-text-muted hover:text-amber hover:bg-amber/10 transition-all group flex items-center gap-2"
+                    className="p-2 rounded-xl bg-white/5 text-text-muted hover:text-amber hover:bg-amber/10 transition-all group flex items-center gap-2 shrink-0"
                 >
                     <ImagePlusIcon className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest hidden group-hover:block">Photo</span>
                 </button>
                 <button 
                     onClick={() => fileInputRef.current?.click()}
-                    className="p-2 rounded-xl bg-white/5 text-text-muted hover:text-blue-400 hover:bg-blue-400/10 transition-all group flex items-center gap-2"
+                    className="p-2 rounded-xl bg-white/5 text-text-muted hover:text-blue-400 hover:bg-blue-400/10 transition-all group flex items-center gap-2 shrink-0"
                 >
                     <VideoIcon className="w-4 h-4" />
                     <span className="text-[10px] font-bold uppercase tracking-widest hidden group-hover:block">Video</span>
                 </button>
-                <div className="h-4 w-px bg-white/10 mx-1" />
-                <span className="text-[10px] text-text-muted font-medium">
+                <button 
+                    onClick={() => { setShowFilmInput(!showFilmInput); setShowScriptInput(false); }}
+                    className={`p-2 rounded-xl text-text-muted transition-all group flex items-center gap-2 shrink-0 ${showFilmInput || filmLink ? 'text-amber bg-amber/10' : 'bg-white/5 hover:text-amber hover:bg-amber/10'}`}
+                >
+                    <FilmIcon className="w-4 h-4" />
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden group-hover:block">Film Link</span>
+                </button>
+                <button 
+                    onClick={() => { setShowScriptInput(!showScriptInput); setShowFilmInput(false); }}
+                    className={`p-2 rounded-xl text-text-muted transition-all group flex items-center gap-2 shrink-0 ${showScriptInput || scriptContent ? 'text-indigo bg-indigo/10' : 'bg-white/5 hover:text-indigo hover:bg-indigo/10'}`}
+                >
+                    <svg className="w-4 h-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
+                    <span className="text-[10px] font-bold uppercase tracking-widest hidden group-hover:block">Script</span>
+                </button>
+                <div className="h-4 w-px bg-white/10 mx-1 shrink-0" />
+                <span className="text-[10px] text-text-muted font-medium shrink-0">
                   {content.length} chars
                 </span>
               </div>
-              <div className="flex items-center gap-2">
+              <div className="flex items-center gap-2 shrink-0">
+                <select 
+                  value={audience} 
+                  onChange={(e) => setAudience(e.target.value as any)}
+                  className="bg-transparent border border-white/10 rounded-lg text-xs text-text-muted px-2 py-1.5 outline-none focus:border-amber transition-colors"
+                >
+                  <option value="public" className="bg-[#111118]">Public</option>
+                  <option value="followers" className="bg-[#111118]">Followers Only</option>
+                </select>
                 <button
                   onClick={() => { setIsExpanded(false); setContent(""); setSelectedTags([]); setError(null); clearMedia(); }}
                   className="px-3 py-1.5 rounded-lg text-xs text-text-muted hover:text-white hover:bg-white/5 transition-colors"
