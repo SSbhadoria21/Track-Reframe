@@ -42,6 +42,7 @@ const HERO_TOOLS = [
 ];
 
 const SECONDARY_TOOLS = [
+  { title: "AI Script Coverage", desc: "Get structural, character, pacing, and dialogue analysis for your screenplay.", icon: FilmStripIcon, href: "/studio/script-coverage" },
   { title: "Mood Board Generator", desc: "AI-generated visual mood boards from scene descriptions.", icon: SpotlightIcon, href: "/studio/mood-board" },
   { title: "Budget Estimator", desc: "Estimate your film's budget based on project parameters.", icon: ClapperboardIcon, href: "/studio/budget-estimator" },
   { title: "Call Sheet Generator", desc: "Generate professional call sheets for your shoot days.", icon: FilmReelIcon, href: "/studio/call-sheet" },

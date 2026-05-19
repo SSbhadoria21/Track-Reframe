@@ -2,10 +2,12 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import Link from "next/link";
 import { ApertureIcon, CameraIcon, FilmReelIcon } from "@/components/icons";
 
 /* ─── Data ─── */
-const TABS = ["All Films", "New Creators", "Director Style", "By Era", "Mood", "Bucket Lists", "Crew", "Film DNA"];
+const TABS = ["All Films", "New Creators", "Director Style", "By Era", "Mood", "Bucket Lists", "Crew", "Film DNA", "Festivals"];
+
 
 const MOODS = [
   { name: "Melancholic", emoji: "🌧️", color: "from-blue-900/40 to-indigo-900/40" },
@@ -220,9 +222,18 @@ export default function DiscoverPage() {
 
           {/* CREW */}
           {activeTab === 6 && (
-            <div className="text-center py-16">
-              <CameraIcon className="w-16 h-16 text-white/[0.06] mx-auto mb-4" />
-              <p className="text-text-muted">Crew Discovery page coming soon.</p>
+            <div className="bg-surface border border-white/[0.06] rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-4 max-w-lg mx-auto py-12">
+              <CameraIcon className="w-16 h-16 text-amber/40" />
+              <h3 className="font-display font-bold text-lg text-white">Crew Trust Network</h3>
+              <p className="text-sm text-text-secondary leading-relaxed max-w-sm">
+                Find vetted crew listings, express interest in production jobs, or post opportunities for your next indie project.
+              </p>
+              <Link
+                href="/studio/find-crew"
+                className="px-5 py-2.5 rounded-lg bg-amber hover:bg-amber-hover text-surface text-xs font-bold active:scale-95 transition-all"
+              >
+                Go to Crew Network →
+              </Link>
             </div>
           )}
 
@@ -256,6 +267,23 @@ export default function DiscoverPage() {
                 ))}
               </div>
               <p className="text-xs text-text-muted text-center mt-6">Rate more films to refine your DNA profile</p>
+            </div>
+          )}
+
+          {/* FESTIVALS */}
+          {activeTab === 8 && (
+            <div className="bg-surface border border-white/[0.06] rounded-xl p-6 flex flex-col items-center justify-center text-center space-y-4 max-w-lg mx-auto py-12">
+              <FilmReelIcon className="w-16 h-16 text-amber/40" />
+              <h3 className="font-display font-bold text-lg text-white">Festival Intelligence Hub</h3>
+              <p className="text-sm text-text-secondary leading-relaxed max-w-sm">
+                Browse film festivals, get AI-powered submission matches, and track your active submissions in real-time.
+              </p>
+              <Link
+                href="/discover/festivals"
+                className="px-5 py-2.5 rounded-lg bg-amber hover:bg-amber-hover text-surface text-xs font-bold active:scale-95 transition-all"
+              >
+                Go to Festival Hub →
+              </Link>
             </div>
           )}
 

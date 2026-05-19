@@ -5,9 +5,10 @@ import { motion } from "framer-motion";
 import { FilmsTab } from "./FilmsTab";
 import { ScriptsTab } from "./ScriptsTab";
 import { CertificatesTab } from "./CertificatesTab";
+import { CrewRecordTab } from "./CrewRecordTab";
 
 
-type Tab = "films" | "scripts" | "awards" | "certificates";
+type Tab = "films" | "scripts" | "awards" | "certificates" | "crew_record";
 
 
 interface ProfileTabsProps {
@@ -21,11 +22,12 @@ export function ProfileTabs({ userId, isOwner = true }: ProfileTabsProps) {
   return (
     <div className="mt-8 px-4 md:px-0">
       {/* Tab navigation */}
-      <div className="flex items-center gap-6 border-b border-white/10 mb-6 px-2">
+      <div className="flex items-center gap-6 border-b border-white/10 mb-6 px-2 overflow-x-auto divide-x-0">
         <TabButton active={activeTab === "films"} onClick={() => setActiveTab("films")} label="Films" />
         <TabButton active={activeTab === "scripts"} onClick={() => setActiveTab("scripts")} label="Scripts" />
         <TabButton active={activeTab === "awards"} onClick={() => setActiveTab("awards")} label="Awards" />
         <TabButton active={activeTab === "certificates"} onClick={() => setActiveTab("certificates")} label="Certificates" />
+        <TabButton active={activeTab === "crew_record"} onClick={() => setActiveTab("crew_record")} label="Crew Record" />
 
       </div>
 
@@ -34,6 +36,7 @@ export function ProfileTabs({ userId, isOwner = true }: ProfileTabsProps) {
         {activeTab === "films" && <FilmsTab userId={userId} isOwner={isOwner} />}
         {activeTab === "scripts" && <ScriptsTab isOwner={isOwner} />}
         {activeTab === "certificates" && <CertificatesTab userId={userId} isOwner={isOwner} />}
+        {activeTab === "crew_record" && <CrewRecordTab userId={userId} isOwner={isOwner} />}
         {activeTab === "awards" && (
 
           <div className="flex flex-col items-center justify-center py-16 text-center">

@@ -181,7 +181,9 @@ export function Sidebar() {
   const navItems = [
     { name: "Home Feed", href: "/feed", icon: FilmReelIcon },
     { name: "Studio", href: "/studio", icon: CameraIcon },
+    { name: "Script Coverage", href: "/studio/script-coverage", icon: ClapperboardIcon },
     { name: "Discover", href: "/discover", icon: ApertureIcon },
+    { name: "Festivals", href: "/discover/festivals", icon: FilmReelIcon },
     { name: "Community", href: "/community", icon: ClapperboardIcon },
     { name: "Competitions", href: "/competitions", icon: TrophyIcon },
     { name: "My Dashboard", href: "/profile", icon: UserIcon },

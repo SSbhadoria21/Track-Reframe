@@ -49,7 +49,7 @@ export function TopBar() {
       // 2. Real-time Listener
       const channelName = `topbar_notifs:${profile.id}`;
       
-      const existingChannel = supabase.getChannels().find(ch => ch.topic === `realtime:${channelName}`);
+      const existingChannel = supabase.getChannels().find((ch: any) => ch.topic === `realtime:${channelName}`);
       if (existingChannel) {
         await supabase.removeChannel(existingChannel);
       }

@@ -23,6 +23,7 @@ export default function OnboardingPage() {
   const [username, setUsername] = useState("");
   const [selectedCraft, setSelectedCraft] = useState("");
   const [tagline, setTagline] = useState("");
+  const [currentProjectStage, setCurrentProjectStage] = useState("Development");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const hasChecked = useRef(false);
@@ -89,7 +90,8 @@ export default function OnboardingPage() {
         body: JSON.stringify({
           username,
           selectedCraft,
-          tagline
+          tagline,
+          currentProjectStage,
         })
       });
 
@@ -182,6 +184,29 @@ export default function OnboardingPage() {
               <div className="absolute bottom-4 right-6 font-mono text-[9px] text-text-muted">
                 {tagline.length}/160
               </div>
+            </div>
+          </section>
+
+          <section>
+            <label className="font-mono text-[9px] uppercase tracking-widest text-text-muted mb-4 block">CURRENT PROJECT STAGE</label>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3">
+              {["Development", "Pre-Production", "Production", "Post-Production", "Distribution"].map((stage) => {
+                const isSelected = currentProjectStage === stage;
+                return (
+                  <button
+                    key={stage}
+                    type="button"
+                    onClick={() => setCurrentProjectStage(stage)}
+                    className={`p-4 rounded-xl border text-center font-bold text-xs transition-all ${
+                      isSelected
+                        ? "bg-amber/10 border-amber text-amber glow-amber"
+                        : "bg-[#0E0E14] border-white/5 text-text-muted hover:border-white/20 hover:text-white"
+                    }`}
+                  >
+                    {stage}
+                  </button>
+                );
+              })}
             </div>
           </section>
 

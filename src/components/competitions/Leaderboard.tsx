@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@/lib/supabase/client";
-import { TrophyIcon, StarIcon, PlayIcon, ExternalLinkIcon, FilmIcon, MessageSquareIcon } from "@/components/icons";
+import { TrophyIcon, StarIcon, PlayIcon, ExternalLinkIcon, FilmIcon } from "@/components/icons";
 import { toast } from "react-hot-toast";
 
 import { EntryDrawer } from "./EntryDrawer";

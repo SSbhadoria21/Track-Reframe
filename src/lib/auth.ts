@@ -1,7 +1,7 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
-import { SupabaseAdapter } from "@auth/supabase-adapter";
 import { createClient } from "@supabase/supabase-js";
+import { v4 as uuidv4 } from "uuid";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -36,13 +36,36 @@ export const authOptions: NextAuthOptions = {
 
         if (!existingUser) {
           console.log("Attempting to create new user:", user.email);
+
+          // Generate a username from email (before @, sanitized)
+          const baseUsername = user.email
+            .split("@")[0]
+            .replace(/[^a-zA-Z0-9_]/g, "")
+            .toLowerCase()
+            .slice(0, 20);
+
+          // Check for username collisions and append random suffix if needed
+          const { data: usernameExists } = await supabaseAdmin
+            .from("users")
+            .select("id")
+            .eq("username", baseUsername)
+            .maybeSingle();
+
+          const finalUsername = usernameExists
+            ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
+            : baseUsername;
+
+          const newUserId = uuidv4();
+
           const { error: insertError } = await supabaseAdmin
             .from("users")
             .insert({
+              id: newUserId,
               email: user.email,
-              name: user.name,
+              username: finalUsername,
+              display_name: user.name || finalUsername,
               avatar_url: user.image,
-              role: "creator",
+              roles: ["creator"],
               onboarding_complete: false,
               coins: 0,
             });
@@ -51,7 +74,7 @@ export const authOptions: NextAuthOptions = {
             console.error("DATABASE ERROR (Create User):", insertError);
             return false;
           }
-          console.log("New user created successfully!");
+          console.log("New user created successfully:", finalUsername);
         }
 
         return true;

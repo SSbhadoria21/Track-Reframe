@@ -3,10 +3,10 @@ import { createClient } from "@supabase/supabase-js";
 
 export async function GET(
   req: Request,
-  { params }: { params: { username: string } }
+  { params }: { params: Promise<{ username: string }> }
 ) {
   try {
-    const { username } = params;
+    const { username } = await params;
     
     const supabaseAdmin = createClient(
       process.env.SUPABASE_URL!,
