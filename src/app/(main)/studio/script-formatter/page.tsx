@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useCallback, useEffect } from "react";
+import { useState, useMemo, useCallback, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { FilmStripIcon } from "@/components/icons";
 import { exportScreenplayPDF } from "./pdf-export";
@@ -216,6 +216,35 @@ export default function ScriptFormatterPage() {
     watermark: false, watermarkText: "DRAFT",
   });
 
+  // Handwritten OCR Upgrades
+  const [inputMethod, setInputMethod] = useState<"type" | "upload">("type");
+  const [uploadedFiles, setUploadedFiles] = useState<{ id: string; file: File; preview: string; status: "pending" | "processing" | "done" | "error" }[]>([]);
+  const [ocrState, setOcrState] = useState<"idle" | "arranging" | "processing" | "success" | "error">("idle");
+  const [ocrReason, setOcrReason] = useState("");
+  const [ocrWordCount, setOcrWordCount] = useState(0);
+  const [ocrPageCount, setOcrPageCount] = useState(0);
+  const [isCleaning, setIsCleaning] = useState(false);
+  const [cleanBannerText, setCleanBannerText] = useState<string | null>(null);
+  const [cleanBannerStyle, setCleanBannerStyle] = useState<"amber" | "green">("amber");
+  const [isFromHandwriting, setIsFromHandwriting] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [dailyUploadsCount, setDailyUploadsCount] = useState(0);
+  const [statusMsgIndex, setStatusMsgIndex] = useState(0);
+  const [progressVal, setProgressVal] = useState(0);
+  const [draggedIndex, setDraggedIndex] = useState<number | null>(null);
+  const [textareaClass, setTextareaClass] = useState("opacity-100");
+
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const abortControllerRef = useRef<AbortController | null>(null);
+
+  const statusMessages = [
+    "Detecting text regions...",
+    "Reading line by line...",
+    "Identifying scene headings...",
+    "Extracting dialogue...",
+    "Almost done..."
+  ];
+
   useEffect(() => {
     if (rawText.length > 50) {
       const rough = isRoughText(rawText);
@@ -264,6 +293,7 @@ export default function ScriptFormatterPage() {
   const handleTextChange = useCallback((value: string) => {
     const prevLen = rawText.length;
     setRawText(value);
+    setIsFromHandwriting(false);
     // Detect paste: large jump in length (>60 chars added at once) or multiline content
     const isPaste = (value.length - prevLen) > 60;
     const isSubstantial = value.length > 100 && (value.includes("\n") || value.length > 200);
@@ -272,6 +302,236 @@ export default function ScriptFormatterPage() {
       setTimeout(() => setShowMetaModal(true), 300);
     }
   }, [hasBeenPrompted, rawText.length]);
+
+  const fetchUsageCount = async () => {
+    try {
+      const res = await fetch("/api/studio/ocr-usage");
+      if (res.ok) {
+        const data = await res.json();
+        setDailyUploadsCount(data.count || 0);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    fetchUsageCount();
+  }, []);
+
+  useEffect(() => {
+    if (ocrState === "processing") {
+      setStatusMsgIndex(0);
+      const interval = setInterval(() => {
+        setStatusMsgIndex(prev => (prev + 1) % statusMessages.length);
+      }, 2000);
+      return () => clearInterval(interval);
+    }
+  }, [ocrState]);
+
+  useEffect(() => {
+    if (ocrState === "processing") {
+      setProgressVal(0);
+      const start = Date.now();
+      const duration = 3000;
+      const interval = setInterval(() => {
+        const elapsed = Date.now() - start;
+        const progress = Math.min(85, (elapsed / duration) * 85);
+        setProgressVal(progress);
+        if (elapsed >= duration) {
+          clearInterval(interval);
+        }
+      }, 50);
+      return () => clearInterval(interval);
+    }
+  }, [ocrState]);
+
+  const handleDragOverZone = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(true);
+  };
+
+  const handleDragLeaveZone = () => {
+    setDragOver(false);
+  };
+
+  const handleDropZone = (e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    if (dailyUploadsCount >= 10) return;
+    if (e.dataTransfer.files && e.dataTransfer.files.length > 0) {
+      addFiles(Array.from(e.dataTransfer.files));
+    }
+  };
+
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files.length > 0) {
+      addFiles(Array.from(e.target.files));
+    }
+  };
+
+  const addFiles = (files: File[]) => {
+    const validFiles = files.filter(f => f.type.startsWith("image/") || f.name.endsWith(".pdf"));
+    if (validFiles.length === 0) return;
+
+    const allowed = validFiles.slice(0, Math.max(0, 5 - uploadedFiles.length));
+    const newItems = allowed.map(file => ({
+      id: Math.random().toString(36).substring(2, 9),
+      file,
+      preview: URL.createObjectURL(file),
+      status: "pending" as const
+    }));
+
+    const updated = [...uploadedFiles, ...newItems];
+    setUploadedFiles(updated);
+
+    if (updated.length > 1) {
+      setOcrState("arranging");
+    } else if (updated.length === 1) {
+      processOCR(updated);
+    }
+  };
+
+  const handleDragStart = (index: number) => {
+    setDraggedIndex(index);
+  };
+
+  const handleDragOver = (e: React.DragEvent, index: number) => {
+    e.preventDefault();
+    if (draggedIndex === null || draggedIndex === index) return;
+    const items = [...uploadedFiles];
+    const temp = items[draggedIndex];
+    items.splice(draggedIndex, 1);
+    items.splice(index, 0, temp);
+    setUploadedFiles(items);
+    setDraggedIndex(index);
+  };
+
+  const handleDragEnd = () => {
+    setDraggedIndex(null);
+  };
+
+  const moveItem = (fromIndex: number, direction: "left" | "right") => {
+    const toIndex = direction === "left" ? fromIndex - 1 : fromIndex + 1;
+    if (toIndex < 0 || toIndex >= uploadedFiles.length) return;
+    const items = [...uploadedFiles];
+    const temp = items[fromIndex];
+    items[fromIndex] = items[toIndex];
+    items[toIndex] = temp;
+    setUploadedFiles(items);
+  };
+
+  const startProcessing = () => {
+    processOCR(uploadedFiles);
+  };
+
+  const handleCancelOCR = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    setOcrState("idle");
+    setUploadedFiles([]);
+  };
+
+  const processOCR = async (filesToProcess: typeof uploadedFiles) => {
+    if (filesToProcess.length === 0) return;
+    setOcrState("processing");
+    setOcrReason("");
+
+    setUploadedFiles(prev => prev.map(f => ({ ...f, status: "processing" })));
+
+    const formData = new FormData();
+    filesToProcess.forEach(f => {
+      formData.append("files", f.file);
+    });
+
+    abortControllerRef.current = new AbortController();
+
+    try {
+      const res = await fetch("/api/studio/ocr-extract", {
+        method: "POST",
+        body: formData,
+        signal: abortControllerRef.current.signal
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "OCR failed");
+      }
+
+      const data = await res.json();
+      setOcrWordCount(data.wordCount);
+      setOcrPageCount(data.pageCount);
+
+      setUploadedFiles(prev => prev.map(f => ({ ...f, status: "done" })));
+      setOcrState("success");
+      
+      setInputMethod("type");
+      setRawText(data.rawText);
+      setIsFromHandwriting(true);
+
+      runAICleanup(data.rawText, data.pageCount);
+      fetchUsageCount();
+    } catch (err: any) {
+      if (err.name === "AbortError") return;
+      console.error(err);
+      setUploadedFiles(prev => prev.map(f => ({ ...f, status: "error" })));
+      setOcrState("error");
+
+      const errMsg = (err.message || "").toLowerCase();
+      if (errMsg.includes("blurry") || errMsg.includes("focus")) {
+        setOcrReason("Image too blurry — try a clearer photo");
+      } else if (errMsg.includes("contrast") || errMsg.includes("dark")) {
+        setOcrReason("Low contrast — try better lighting");
+      } else if (errMsg.includes("small") || errMsg.includes("crop")) {
+        setOcrReason("Text too small — try cropping closer");
+      } else if (errMsg.includes("blank") || errMsg.includes("empty")) {
+        setOcrReason("File appears to be blank or corrupt");
+      } else {
+        setOcrReason("Could not detect handwritten text");
+      }
+    }
+  };
+
+  const runAICleanup = async (rawOcrText: string, pageCount: number) => {
+    setIsCleaning(true);
+    setCleanBannerText("AI is cleaning up your handwritten text...");
+    setCleanBannerStyle("amber");
+
+    try {
+      const res = await fetch("/api/studio/script-cleanup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ rawText: rawOcrText, pageCount })
+      });
+
+      if (!res.ok) {
+        throw new Error("Cleanup failed");
+      }
+
+      const data = await res.json();
+
+      setTextareaClass("opacity-0 transition-opacity duration-200");
+      setTimeout(() => {
+        setRawText(data.cleanedText);
+        setTextareaClass("opacity-100 transition-opacity duration-200");
+      }, 200);
+
+      setCleanBannerText("Done! Review and edit before exporting.");
+      setCleanBannerStyle("green");
+
+      setTimeout(() => {
+        setCleanBannerText(null);
+      }, 3000);
+    } catch (err) {
+      console.error(err);
+      setCleanBannerText("AI cleanup failed, but you can edit the raw text below.");
+      setCleanBannerStyle("amber");
+      setTimeout(() => {
+        setCleanBannerText(null);
+      }, 5000);
+    } finally {
+      setIsCleaning(false);
+    }
+  };
 
   const handleMetaSubmit = (m: typeof meta) => {
     setMeta(m);
@@ -377,9 +637,16 @@ export default function ScriptFormatterPage() {
           <div className="border-b border-white/[0.06] shrink-0">
             <button onClick={() => setShowMeta(!showMeta)}
               className="w-full flex items-center justify-between px-5 py-3 text-sm hover:bg-white/[0.02] transition-colors">
-              <span className="text-text-secondary truncate">
-                {meta.title || "Untitled Draft"} {meta.writer && `— ${meta.writer}`}
-              </span>
+              <div className="flex items-center gap-2 truncate min-w-0">
+                <span className="text-text-secondary truncate">
+                  {meta.title || "Untitled Draft"} {meta.writer && `— ${meta.writer}`}
+                </span>
+                {isFromHandwriting && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium bg-[#6C63FF]/15 text-[#6C63FF] border border-[#6C63FF]/30 select-none">
+                    📷 from handwriting
+                  </span>
+                )}
+              </div>
               <svg className={`w-4 h-4 text-text-muted transition-transform shrink-0 ${showMeta ? "rotate-180" : ""}`} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19 9l-7 7-7-7" />
               </svg>
@@ -411,33 +678,427 @@ export default function ScriptFormatterPage() {
             </AnimatePresence>
           </div>
 
-          {/* Convert / Enhance Banner */}
-          {bannerMode && rawText.length > 50 && (
-            <div className="shrink-0">
-              <ActionBanner
-                mode={bannerMode}
-                onAction={bannerMode === "convert" ? handleConvert : handleEnhance}
-                loading={bannerMode === "convert" ? converting : enhancing}
-                language={language}
-                onLangChange={setLanguage}
-              />
-            </div>
-          )}
-
-          {/* Text Input */}
-          <div className="flex-1 relative min-h-0 overflow-hidden">
-            <textarea value={rawText} onChange={(e) => handleTextChange(e.target.value)}
-              placeholder={"Paste any script or story idea here…\n\nYou can paste:\n• A formatted screenplay\n• A rough story in plain paragraphs\n• Notes in any language (Hindi, Tamil, etc.)\n• A synopsis or treatment\n\nAI will convert it into proper screenplay format!"}
-              spellCheck={false}
-              className="w-full h-full bg-[#0D0D12] p-6 pl-14 font-mono text-[13px] text-text-secondary leading-[1.7] resize-none focus:outline-none overflow-y-auto scrollbar-hide" />
-            <div className="absolute left-0 top-0 w-10 h-full overflow-hidden pointer-events-none">
-              <div className="py-6 pr-2 text-right">
-                {rawText.split("\n").map((_, i) => (
-                  <div key={i} className="text-[11px] text-text-muted/40 leading-[1.7] font-mono">{i + 1}</div>
-                ))}
+          {/* Input Method Selector Tabs */}
+          <div className="flex border-b border-white/[0.06] bg-[#0A0A0F]/60 shrink-0 select-none">
+            <button 
+              type="button"
+              onClick={() => setInputMethod("type")}
+              className={`flex-1 py-3 text-center text-xs font-bold uppercase tracking-wider relative transition-colors ${
+                inputMethod === "type" ? "text-amber" : "text-text-muted hover:text-white"
+              }`}
+            >
+              ✎ Type / Paste
+              {inputMethod === "type" && (
+                <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber" />
+              )}
+            </button>
+            
+            <div className="relative group flex-1">
+              <button 
+                type="button"
+                onClick={() => setInputMethod("upload")}
+                className={`w-full py-3 text-center text-xs font-bold uppercase tracking-wider relative transition-colors ${
+                  inputMethod === "upload" ? "text-amber" : "text-text-muted hover:text-white"
+                }`}
+              >
+                📷 Upload Handwritten
+                {inputMethod === "upload" && (
+                  <motion.div layoutId="activeTabUnderline" className="absolute bottom-0 left-0 right-0 h-0.5 bg-amber" />
+                )}
+              </button>
+              {/* Tooltip */}
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-max hidden group-hover:block bg-[#1A1A25] border border-white/10 text-white text-[11px] py-1.5 px-3 rounded-md shadow-lg pointer-events-none z-50 transition-all">
+                Upload a photo or scan of your handwritten script pages
               </div>
             </div>
           </div>
+
+          {inputMethod === "type" ? (
+            <div className="flex-1 flex flex-col min-h-0 overflow-hidden animate-fade-in">
+              {/* AI Cleanup Banner */}
+              {cleanBannerText && (
+                <div 
+                  className={`mx-5 mt-3 h-9 rounded-lg flex items-center justify-between px-4 text-xs font-semibold select-none shrink-0 ${
+                    cleanBannerStyle === "amber" 
+                      ? "bg-amber text-[#0A0A0F]" 
+                      : "bg-[#22C55E] text-white"
+                  }`}
+                >
+                  <div className="flex items-center gap-2">
+                    <span>{cleanBannerStyle === "amber" ? "⚡" : "✓"}</span>
+                    <span>{cleanBannerText}</span>
+                  </div>
+                  {cleanBannerStyle === "amber" && (
+                    <div className="w-3.5 h-3.5 border-2 border-indigo border-t-transparent rounded-full animate-spin shrink-0" />
+                  )}
+                </div>
+              )}
+
+              {/* Convert / Enhance Banner */}
+              {bannerMode && rawText.length > 50 && (
+                <div className="shrink-0">
+                  <ActionBanner
+                    mode={bannerMode}
+                    onAction={bannerMode === "convert" ? handleConvert : handleEnhance}
+                    loading={bannerMode === "convert" ? converting : enhancing}
+                    language={language}
+                    onLangChange={setLanguage}
+                  />
+                </div>
+              )}
+
+              {/* Text Input Textarea */}
+              <div className="flex-1 relative min-h-0 overflow-hidden">
+                <textarea 
+                  value={rawText} 
+                  onChange={(e) => handleTextChange(e.target.value)}
+                  readOnly={isCleaning}
+                  placeholder={"Paste any script or story idea here…\n\nYou can paste:\n• A formatted screenplay\n• A rough story in plain paragraphs\n• Notes in any language (Hindi, Tamil, etc.)\n• A synopsis or treatment\n\nAI will convert it into proper screenplay format!"}
+                  spellCheck={false}
+                  className={`w-full h-full bg-[#0D0D12] p-6 pl-14 font-mono text-[13px] text-text-secondary leading-[1.7] resize-none focus:outline-none overflow-y-auto scrollbar-hide ${textareaClass} ${
+                    isCleaning ? "cursor-not-allowed opacity-70" : ""
+                  }`}
+                />
+                <div className="absolute left-0 top-0 w-10 h-full overflow-hidden pointer-events-none border-r border-white/5">
+                  <div className="py-6 pr-2 text-right">
+                    {rawText.split("\n").map((_, i) => (
+                      <div key={i} className="text-[11px] text-text-muted/40 leading-[1.7] font-mono">{i + 1}</div>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex-1 min-h-0 overflow-y-auto scrollbar-hide pb-6">
+              {/* Daily Limit reached Banner */}
+              {dailyUploadsCount >= 10 && (
+                <div className="mx-5 mt-4 p-3 bg-amber/10 border border-amber/20 text-amber text-xs rounded-lg text-center font-bold">
+                  Daily limit reached (10/10). Resets at midnight IST.
+                </div>
+              )}
+
+              {/* Upload Zone (IDLE State) */}
+              {ocrState === "idle" && (
+                <div 
+                  onDragOver={handleDragOverZone}
+                  onDragLeave={handleDragLeaveZone}
+                  onDrop={handleDropZone}
+                  onClick={() => dailyUploadsCount < 10 && fileInputRef.current?.click()}
+                  className={`mx-5 mt-5 h-[220px] rounded-xl flex flex-col items-center justify-center gap-3 border-2 transition-all duration-150 select-none ${
+                    dailyUploadsCount >= 10
+                      ? "border-white/10 bg-white/2 cursor-not-allowed opacity-50"
+                      : dragOver 
+                        ? "border-amber bg-amber/5 cursor-pointer" 
+                        : "border-dashed border-amber/40 bg-amber/2 cursor-pointer hover:border-amber hover:bg-amber/3"
+                  }`}
+                >
+                  <input 
+                    type="file" 
+                    ref={fileInputRef}
+                    onChange={handleFileSelect}
+                    accept="image/*,.pdf" 
+                    multiple 
+                    disabled={dailyUploadsCount >= 10}
+                    className="hidden" 
+                  />
+                  
+                  {/* Camera SVG Icon */}
+                  <svg 
+                    className={`w-12 h-12 text-amber transition-transform duration-150 ${dragOver ? "scale-110" : "scale-100"}`} 
+                    fill="none" 
+                    viewBox="0 0 24 24" 
+                    stroke="currentColor" 
+                    strokeWidth="1.5"
+                  >
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6.827 6.175A2.31 2.31 0 018.847 5h6.306c.866 0 1.62.485 2.02 1.175l.39.664a2.31 2.31 0 002.02 1.175h1.104C21.905 8 23 9.095 23 10.455v7.09c0 1.36-1.095 2.455-2.455 2.455H3.455C2.095 20 1 18.905 1 17.545V10.46c0-1.36 1.095-2.455 2.455-2.455h1.104a2.31 2.31 0 002.02-1.175l.39-.664z" />
+                    <circle cx="12" cy="13" r="4" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                  
+                  <span className="text-sm font-bold text-white">Upload your handwritten script</span>
+                  <span className="text-xs text-text-muted">Photo, scan, or screenshot — any angle works</span>
+                  
+                  {/* Accepted formats pills */}
+                  <div className="flex gap-1.5 mt-1">
+                    {["JPG", "PNG", "PDF", "HEIC", "WEBP"].map(fmt => (
+                      <span 
+                        key={fmt} 
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white/5 border border-white/10 text-text-muted"
+                      >
+                        {fmt}
+                      </span>
+                    ))}
+                  </div>
+                  
+                  {/* Choose file button */}
+                  <button 
+                    type="button" 
+                    disabled={dailyUploadsCount >= 10}
+                    className="mt-1 px-5 py-2 rounded-lg border border-amber text-amber text-xs font-bold hover:bg-amber/8 active:scale-95 transition-all disabled:opacity-50 disabled:pointer-events-none"
+                  >
+                    Choose File
+                  </button>
+                </div>
+              )}
+
+              {/* Arranging State (Reorder UI) */}
+              {ocrState === "arranging" && (
+                <div className="mx-5 mt-5 p-5 bg-[#111118] border border-white/[0.08] rounded-xl flex flex-col gap-4">
+                  <span className="text-xs font-bold text-text-secondary">Arrange pages in order:</span>
+                  
+                  <div className="flex gap-3 overflow-x-auto py-2 scrollbar-hide">
+                    {uploadedFiles.map((fileItem, idx) => (
+                      <div 
+                        key={fileItem.id}
+                        draggable
+                        onDragStart={() => handleDragStart(idx)}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDragEnd={handleDragEnd}
+                        className="relative w-20 h-28 border border-white/10 rounded-lg overflow-hidden shrink-0 group cursor-grab active:cursor-grabbing select-none"
+                      >
+                        <img src={fileItem.preview} alt="" className="w-full h-full object-cover" />
+                        
+                        {/* Page number badge */}
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber text-[#0A0A0F] font-bold text-[10px]">
+                          {idx + 1}
+                        </span>
+                        
+                        {/* Drag handle icon - 6 dots pattern */}
+                        <div className="absolute top-1.5 right-1.5 w-5 h-5 rounded bg-black/60 flex items-center justify-center text-white/50 opacity-0 group-hover:opacity-100 transition-opacity">
+                          <svg className="w-3.5 h-3.5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5">
+                            <circle cx="9" cy="5" r="1" fill="currentColor" />
+                            <circle cx="15" cy="5" r="1" fill="currentColor" />
+                            <circle cx="9" cy="12" r="1" fill="currentColor" />
+                            <circle cx="15" cy="12" r="1" fill="currentColor" />
+                            <circle cx="9" cy="19" r="1" fill="currentColor" />
+                            <circle cx="15" cy="19" r="1" fill="currentColor" />
+                          </svg>
+                        </div>
+
+                        {/* Shift helper buttons */}
+                        <div className="absolute bottom-1 left-1 right-1 flex justify-between gap-1 opacity-0 group-hover:opacity-100 transition-opacity z-25">
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); moveItem(idx, "left"); }}
+                            disabled={idx === 0}
+                            className="w-6 h-6 rounded bg-black/80 hover:bg-black text-amber flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+                          >
+                            ‹
+                          </button>
+                          <button 
+                            type="button"
+                            onClick={(e) => { e.stopPropagation(); moveItem(idx, "right"); }}
+                            disabled={idx === uploadedFiles.length - 1}
+                            className="w-6 h-6 rounded bg-black/80 hover:bg-black text-amber flex items-center justify-center disabled:opacity-30 disabled:pointer-events-none"
+                          >
+                            ›
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                    <button 
+                      type="button"
+                      onClick={() => dailyUploadsCount < 10 && fileInputRef.current?.click()}
+                      className="text-xs text-amber font-bold hover:underline"
+                    >
+                      + Add more pages
+                    </button>
+                    
+                    <input 
+                      type="file" 
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      accept="image/*,.pdf" 
+                      multiple 
+                      className="hidden" 
+                    />
+
+                    <div className="flex gap-2">
+                      <button 
+                        type="button"
+                        onClick={() => { setOcrState("idle"); setUploadedFiles([]); }}
+                        className="px-4 py-1.5 rounded-lg border border-white/10 text-text-secondary text-xs font-semibold hover:text-white"
+                      >
+                        Cancel
+                      </button>
+                      <button 
+                        type="button"
+                        onClick={startProcessing}
+                        className="px-4 py-1.5 rounded-lg bg-amber text-[#0A0A0F] text-xs font-bold hover:bg-amber-hover"
+                      >
+                        Process in this order →
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Processing State */}
+              {ocrState === "processing" && (
+                <div className="mx-5 mt-5 h-[220px] rounded-xl border border-white/[0.08] bg-[#111118] flex flex-col items-center justify-center gap-3">
+                  {/* Spinning Film Reel */}
+                  <svg className="w-12 h-12 text-amber animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                    <circle cx="12" cy="12" r="10" />
+                    <circle cx="12" cy="12" r="3" />
+                    <path d="M12 2v7M12 15v7M2 12h7M15 12h7" strokeLinecap="round" />
+                    <circle cx="7" cy="7" r="1.5" fill="currentColor" />
+                    <circle cx="17" cy="7" r="1.5" fill="currentColor" />
+                    <circle cx="7" cy="17" r="1.5" fill="currentColor" />
+                    <circle cx="17" cy="17" r="1.5" fill="currentColor" />
+                  </svg>
+
+                  <span className="text-sm font-bold text-white">Reading your handwriting...</span>
+
+                  {/* Progress bar */}
+                  <div className="w-full px-8 mt-1">
+                    <div className="w-full h-1 bg-white/8 rounded-full overflow-hidden">
+                      <div 
+                        className={`h-full bg-amber transition-all duration-100 ${progressVal >= 85 ? "animate-pulse" : ""}`}
+                        style={{ width: `${progressVal}%` }} 
+                      />
+                    </div>
+                  </div>
+
+                  {/* Status rotating messages */}
+                  <span className="text-xs text-text-muted mt-1 h-4 animate-pulse">
+                    {statusMessages[statusMsgIndex]}
+                  </span>
+
+                  {/* Thumbnail strip */}
+                  <div className="flex gap-2 mt-2">
+                    {uploadedFiles.map((fileItem) => (
+                      <div 
+                        key={fileItem.id} 
+                        className={`relative w-8 h-10 rounded-md overflow-hidden border ${
+                          fileItem.status === "processing" 
+                            ? "border-amber animate-pulse" 
+                            : fileItem.status === "done" 
+                            ? "border-[#22C55E]" 
+                            : "border-white/10"
+                        }`}
+                      >
+                        <img src={fileItem.preview} alt="" className="w-full h-full object-cover" />
+                        {fileItem.status === "done" && (
+                          <div className="absolute top-0.5 right-0.5 w-3 h-3 bg-[#22C55E] rounded-full flex items-center justify-center text-white text-[8px] font-bold">
+                            ✓
+                          </div>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+
+                  <button 
+                    type="button" 
+                    onClick={handleCancelOCR}
+                    className="text-xs text-red-500 hover:text-red-400 font-semibold mt-1"
+                  >
+                    Cancel
+                  </button>
+                </div>
+              )}
+
+              {/* Success Card */}
+              {ocrState === "success" && (
+                <div className="mx-5 mt-5 p-4 bg-[#111118] border border-white/[0.08] rounded-xl flex flex-col justify-center min-h-[120px] gap-2.5">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/30 flex items-center justify-center text-[#22C55E] shrink-0">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                      </svg>
+                    </div>
+                    <div>
+                      <h5 className="font-bold text-sm text-white">Text extracted successfully</h5>
+                      <p className="text-xs text-text-muted">
+                        {ocrWordCount} words extracted from {ocrPageCount} page(s)
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                    <div className="flex gap-2">
+                      {uploadedFiles.map(fileItem => (
+                        <div key={fileItem.id} className="relative w-8 h-10 rounded-md overflow-hidden border border-[#22C55E]">
+                          <img src={fileItem.preview} alt="" className="w-full h-full object-cover" />
+                          <div className="absolute top-0.5 right-0.5 w-3 h-3 bg-[#22C55E] rounded-full flex items-center justify-center text-white text-[8px] font-bold">
+                            ✓
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                    
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setOcrState("idle");
+                        setUploadedFiles([]);
+                      }}
+                      className="text-xs text-amber font-bold hover:underline"
+                    >
+                      Re-upload
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {/* Error State */}
+              {ocrState === "error" && (
+                <div className="mx-5 mt-5 p-5 bg-[#111118] border border-white/[0.08] rounded-xl flex flex-col gap-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                      </svg>
+                    </div>
+                    <h5 className="font-bold text-sm text-white">Couldn't read this image clearly</h5>
+                  </div>
+
+                  {ocrReason && (
+                    <p className="text-xs text-text-muted">{ocrReason}</p>
+                  )}
+
+                  <div className="flex gap-3">
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setOcrState("idle");
+                        setUploadedFiles([]);
+                        setTimeout(() => fileInputRef.current?.click(), 100);
+                      }}
+                      className="flex-1 py-2 rounded-lg bg-amber text-[#0A0A0F] text-xs font-bold hover:bg-amber-hover transition-colors"
+                    >
+                      Try Again
+                    </button>
+                    <button 
+                      type="button"
+                      onClick={() => {
+                        setOcrState("idle");
+                        setUploadedFiles([]);
+                        setInputMethod("type");
+                      }}
+                      className="flex-1 py-2 rounded-lg border border-white/10 text-white text-xs font-bold hover:bg-white/5 transition-colors"
+                    >
+                      Type Manually
+                    </button>
+                  </div>
+
+                  {/* Help Tip */}
+                  <div className="bg-[#0A0A0F]/50 rounded-lg p-3 border border-white/5 space-y-1.5 select-none">
+                    <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                      <span>💡</span> Tips for better results:
+                    </p>
+                    <ul className="text-[10px] text-text-muted space-y-1 pl-4 list-disc">
+                      <li>Shoot in good lighting, avoid shadows on the page</li>
+                      <li>Keep the camera directly above, not at an angle</li>
+                      <li>Each page as a separate image works best</li>
+                      <li>Typed text or printed scripts always work perfectly</li>
+                    </ul>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Formatting Options */}
           <div className="border-t border-white/[0.06] px-5 py-4 shrink-0">
