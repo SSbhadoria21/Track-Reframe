@@ -43,8 +43,8 @@ export async function PUT(req: Request) {
     if (roles !== undefined && roles.length > 0) authUpdates.role = roles[0]; // sync first role
 
     if (Object.keys(authUpdates).length > 0) {
-      await supabase.auth.updateUser({
-        data: authUpdates
+      await supabase.auth.admin.updateUserById(userId, {
+        user_metadata: authUpdates
       });
     }
 

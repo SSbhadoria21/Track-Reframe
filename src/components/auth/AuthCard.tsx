@@ -33,17 +33,21 @@ export function AuthCard({ initialView }: AuthCardProps) {
 
     try {
       if (isLogin) {
-        const { error } = await supabase.auth.signInWithPassword({
+        const res = await signIn("credentials", {
+          redirect: false,
           email,
           password,
         });
-        if (error) throw error;
+
+        if (res?.error) {
+          throw new Error(res.error === "CredentialsSignin" ? "Invalid email or password." : res.error);
+        }
         
         // On success, redirect to feed
         router.push("/feed");
         router.refresh();
       } else {
-        const { error } = await supabase.auth.signUp({
+        const { data, error } = await supabase.auth.signUp({
           email,
           password,
           options: {
@@ -56,6 +60,17 @@ export function AuthCard({ initialView }: AuthCardProps) {
         });
         if (error) throw error;
         
+        // Auto-signin with NextAuth after signup
+        const res = await signIn("credentials", {
+          redirect: false,
+          email,
+          password,
+        });
+
+        if (res?.error) {
+          throw new Error(res.error);
+        }
+
         // On success signup, redirect to onboarding
         router.push("/onboarding");
         router.refresh();

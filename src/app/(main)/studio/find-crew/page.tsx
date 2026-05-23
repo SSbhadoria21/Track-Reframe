@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraIcon, UsersIcon } from "@/components/icons";
 import toast from "react-hot-toast";
+import { useSession } from "next-auth/react";
+import { createClient } from "@/lib/supabase/client";
 
 interface Listing {
   id: string;
@@ -47,7 +49,35 @@ export default function FindCrewPage() {
   // Modals state
   const [showPostModal, setShowPostModal] = useState(false);
   const [showInterestModal, setShowInterestModal] = useState(false);
+  const [showApplicationsModal, setShowApplicationsModal] = useState(false);
   const [selectedListing, setSelectedListing] = useState<Listing | null>(null);
+  
+  // Applications State
+  const [applications, setApplications] = useState<any[]>([]);
+  const [loadingApplications, setLoadingApplications] = useState(false);
+
+  // Current User State
+  const { data: session } = useSession();
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
+  useEffect(() => {
+    const getUser = async () => {
+      const email = session?.user?.email;
+      if (!email) return;
+
+      const supabase = createClient();
+      const { data: profile } = await supabase
+        .from("users")
+        .select("id, display_name, username, avatar_url")
+        .eq("email", email)
+        .single();
+      
+      if (profile) {
+        setCurrentUser(profile);
+      }
+    };
+    getUser();
+  }, [session]);
 
   // Post Listing Form state
   const [postForm, setPostForm] = useState({
@@ -66,6 +96,8 @@ export default function FindCrewPage() {
     contactValue: "",
   });
   const [isPosting, setIsPosting] = useState(false);
+  const [postMode, setPostMode] = useState<"create" | "edit">("create");
+  const [editingListingId, setEditingListingId] = useState<string | null>(null);
 
   // Interest Form state
   const [interestMessage, setInterestMessage] = useState("");
@@ -99,18 +131,35 @@ export default function FindCrewPage() {
         .map((r) => r.trim())
         .filter(Boolean);
 
-      const res = await fetch("/api/crew/listings", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          ...postForm,
-          rolesNeeded: rolesArray,
-        }),
-      });
+      let res;
+      if (postMode === "edit" && editingListingId) {
+        res = await fetch(`/api/crew/listings/${editingListingId}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...postForm,
+            rolesNeeded: rolesArray,
+          }),
+        });
+      } else {
+        res = await fetch("/api/crew/listings", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...postForm,
+            rolesNeeded: rolesArray,
+          }),
+        });
+      }
 
-      if (!res.ok) throw new Error("Failed to post listing");
-      toast.success("Listing posted successfully!");
+      if (!res.ok) {
+        const errData = await res.json().catch(() => ({}));
+        throw new Error(errData.error || `Failed to ${postMode} listing`);
+      }
+      toast.success(`Listing ${postMode === "edit" ? "updated" : "posted"} successfully!`);
       setShowPostModal(false);
+      setPostMode("create");
+      setEditingListingId(null);
       setPostForm({
         projectTitle: "",
         projectType: "Short Film",
@@ -162,6 +211,59 @@ export default function FindCrewPage() {
       toast.error(err.message);
     } finally {
       setIsSubmittingInterest(false);
+    }
+  };
+
+  const handleViewApplications = async (listing: Listing) => {
+    setSelectedListing(listing);
+    setShowApplicationsModal(true);
+    setLoadingApplications(true);
+    try {
+      const res = await fetch(`/api/crew/listings/applications?listingId=${listing.id}`);
+      if (!res.ok) throw new Error("Failed to load applications");
+      const data = await res.json();
+      setApplications(data.applications || []);
+    } catch (err: any) {
+      toast.error(err.message);
+    } finally {
+      setLoadingApplications(false);
+    }
+  };
+
+  const handleEditClick = (listing: Listing) => {
+    setPostMode("edit");
+    setEditingListingId(listing.id);
+    setPostForm({
+      projectTitle: listing.project_title,
+      projectType: listing.project_type,
+      rolesNeeded: listing.roles_needed.join(", "),
+      description: listing.description,
+      experienceLevel: listing.experience_level,
+      city: listing.city,
+      country: listing.country,
+      shootStartDate: listing.shoot_start_date ? listing.shoot_start_date.substring(0, 10) : "",
+      shootEndDate: listing.shoot_end_date ? listing.shoot_end_date.substring(0, 10) : "",
+      compensationType: listing.compensation_type,
+      compensationDetails: listing.compensation_details || "",
+      contactMethod: listing.contact_method,
+      contactValue: listing.contact_value,
+    });
+    setShowPostModal(true);
+  };
+
+  const handleCloseListing = async (listingId: string) => {
+    if (!confirm("Are you sure you want to close this listing? Applications will no longer be accepted.")) return;
+    try {
+      const res = await fetch(`/api/crew/listings/${listingId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ isActive: false })
+      });
+      if (!res.ok) throw new Error("Failed to close listing");
+      toast.success("Listing closed");
+      setRefreshTrigger(p => p + 1);
+    } catch (err: any) {
+      toast.error(err.message);
     }
   };
 
@@ -218,7 +320,26 @@ export default function FindCrewPage() {
         </div>
 
         <button
-          onClick={() => setShowPostModal(true)}
+          onClick={() => {
+            setPostMode("create");
+            setEditingListingId(null);
+            setPostForm({
+              projectTitle: "",
+              projectType: "Short Film",
+              rolesNeeded: "",
+              description: "",
+              experienceLevel: "Intermediate",
+              city: "",
+              country: "India",
+              shootStartDate: "",
+              shootEndDate: "",
+              compensationType: "Paid",
+              compensationDetails: "",
+              contactMethod: "email",
+              contactValue: "",
+            });
+            setShowPostModal(true);
+          }}
           className="h-11 px-5 rounded-xl bg-amber hover:bg-amber-hover text-surface text-xs font-bold shadow-lg shadow-amber/10 active:scale-95 transition-all cursor-pointer"
         >
           + Post a Listing
@@ -294,8 +415,15 @@ export default function FindCrewPage() {
               key={l.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-surface border border-white/5 rounded-xl p-5 hover:border-white/10 hover:shadow-xl transition-all flex flex-col md:flex-row justify-between gap-5 relative overflow-hidden"
+              className={`bg-surface border ${l.is_active ? 'border-white/5 hover:border-white/10 hover:shadow-xl' : 'border-white/5 opacity-75 grayscale'} rounded-xl p-5 transition-all flex flex-col md:flex-row justify-between gap-5 relative overflow-hidden`}
             >
+              {/* Closed Badge */}
+              {!l.is_active && (
+                <div className="absolute top-4 right-4 bg-red-500/10 text-red-500 border border-red-500/20 px-3 py-1 rounded text-[10px] font-bold uppercase tracking-wider">
+                  Closed
+                </div>
+              )}
+
               {/* Creator details Left */}
               <div className="flex-1 space-y-4">
                 <div className="flex gap-3.5 items-start">
@@ -315,7 +443,7 @@ export default function FindCrewPage() {
                       {l.project_title}
                     </h3>
                     <p className="text-xs text-text-muted mt-1">
-                      Posted by <span className="font-semibold text-text-secondary">@{l.users?.username}</span>
+                      Posted by <span className="font-semibold text-text-secondary">@{l.users?.username}</span> • {formatTime(l.created_at)}
                     </p>
                   </div>
                 </div>
@@ -358,16 +486,46 @@ export default function FindCrewPage() {
                   </div>
                 </div>
 
-                <div className="flex gap-2">
-                  <button
-                    onClick={() => {
-                      setSelectedListing(l);
-                      setShowInterestModal(true);
-                    }}
-                    className="flex-1 h-9 rounded-lg bg-white/5 border border-white/10 hover:border-amber/30 text-xs font-bold text-text-secondary hover:text-white flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
-                  >
-                    <span>✉</span> Send Application
-                  </button>
+                <div className="flex gap-2 flex-wrap">
+                  {!l.is_active ? (
+                    <div className="flex-1 w-full h-9 rounded-lg bg-white/5 border border-white/10 text-xs font-bold text-text-muted flex items-center justify-center cursor-not-allowed">
+                      No longer accepting applications
+                    </div>
+                  ) : currentUser?.id === l.users?.id ? (
+                    <div className="flex flex-col gap-2 w-full">
+                      <button
+                        onClick={() => handleViewApplications(l)}
+                        className="w-full h-9 rounded-lg bg-amber/10 border border-amber/30 hover:bg-amber/20 text-xs font-bold text-amber flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
+                      >
+                        <UsersIcon className="w-3.5 h-3.5" />
+                        View Applications ({l.interest_count || 0})
+                      </button>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => handleEditClick(l)}
+                          className="flex-1 h-8 rounded-lg bg-white/5 border border-white/10 hover:border-white/30 text-[11px] font-bold text-text-secondary hover:text-white flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => handleCloseListing(l.id)}
+                          className="flex-1 h-8 rounded-lg bg-red-500/10 border border-red-500/30 hover:bg-red-500/20 text-[11px] font-bold text-red-500 flex items-center justify-center cursor-pointer transition-all active:scale-95"
+                        >
+                          Close
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => {
+                        setSelectedListing(l);
+                        setShowInterestModal(true);
+                      }}
+                      className="flex-1 h-9 rounded-lg bg-white/5 border border-white/10 hover:border-amber/30 text-xs font-bold text-text-secondary hover:text-white flex items-center justify-center gap-1 cursor-pointer transition-all active:scale-95"
+                    >
+                      <span>✉</span> Send Application
+                    </button>
+                  )}
                 </div>
               </div>
             </motion.div>
@@ -386,7 +544,7 @@ export default function FindCrewPage() {
               className="w-full max-w-lg bg-surface border border-white/10 rounded-2xl p-6 shadow-2xl space-y-4 my-8"
             >
               <div className="flex justify-between items-center">
-                <h3 className="font-display text-lg font-bold text-white">Create a Crew Listing</h3>
+                <h3 className="font-display text-lg font-bold text-white">{postMode === "edit" ? "Edit Crew Listing" : "Create a Crew Listing"}</h3>
                 <button onClick={() => setShowPostModal(false)} className="text-text-muted hover:text-white font-bold text-lg">
                   ✕
                 </button>
@@ -607,6 +765,107 @@ export default function FindCrewPage() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* View Applications Modal */}
+      <AnimatePresence>
+        {showApplicationsModal && selectedListing && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/80 backdrop-blur-md p-4 overflow-y-auto">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="w-full max-w-2xl bg-surface border border-white/10 rounded-2xl p-6 shadow-2xl space-y-5 my-8 max-h-[85vh] flex flex-col"
+            >
+              <div className="flex justify-between items-center shrink-0">
+                <div>
+                  <h3 className="font-display text-lg font-bold text-white">Applications Received</h3>
+                  <p className="text-xs text-text-muted mt-0.5">{selectedListing.project_title}</p>
+                </div>
+                <button
+                  onClick={() => setShowApplicationsModal(false)}
+                  className="text-text-muted hover:text-white text-lg font-bold"
+                >
+                  ✕
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto pr-2 space-y-4">
+                {loadingApplications ? (
+                  <div className="flex flex-col gap-3">
+                    {[...Array(2)].map((_, i) => (
+                      <div key={i} className="h-28 bg-[#0d0d12] rounded-xl border border-white/5 animate-pulse" />
+                    ))}
+                  </div>
+                ) : applications.length === 0 ? (
+                  <div className="text-center py-12 bg-[#0d0d12] rounded-xl border border-white/5">
+                    <p className="text-sm text-text-muted font-bold">No applications yet.</p>
+                  </div>
+                ) : (
+                  applications.map((app) => (
+                    <div key={app.id} className="bg-[#0d0d12] p-4 rounded-xl border border-white/5 flex flex-col sm:flex-row gap-4 relative">
+                      <div className="flex gap-3 shrink-0">
+                        <div className="w-10 h-10 rounded-full bg-white/10 flex items-center justify-center text-white font-bold text-sm overflow-hidden border border-white/10 shrink-0">
+                          {app.users?.avatar_url ? (
+                            <img src={app.users.avatar_url} alt="Avatar" className="w-full h-full object-cover" />
+                          ) : (
+                            (app.users?.display_name || "A").charAt(0)
+                          )}
+                        </div>
+                        <div className="sm:hidden">
+                          <h4 className="text-sm font-bold text-white leading-tight">{app.users?.display_name}</h4>
+                          <p className="text-xs text-text-muted">@{app.users?.username}</p>
+                        </div>
+                      </div>
+
+                      <div className="flex-1 space-y-2">
+                        <div className="hidden sm:block">
+                          <h4 className="text-sm font-bold text-white leading-tight">{app.users?.display_name}</h4>
+                          <p className="text-xs text-text-muted">@{app.users?.username}</p>
+                        </div>
+                        <div className="bg-white/5 rounded-lg p-3 text-xs text-text-secondary leading-relaxed">
+                          {app.message}
+                        </div>
+                        <p className="text-[10px] text-text-muted text-right">
+                          Applied {new Date(app.created_at).toLocaleDateString()}
+                        </p>
+                      </div>
+
+                      <div className="shrink-0 flex items-start">
+                        {/* Option C: Temporary Chat redirecting to profile */}
+                        <a
+                          href={`/messages/${app.users?.username}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="h-8 px-4 rounded-lg bg-amber hover:bg-amber-hover text-surface text-xs font-bold transition-all flex items-center justify-center whitespace-nowrap shadow-lg shadow-amber/10 active:scale-95"
+                        >
+                          Message
+                        </a>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
+}
+
+// Helper to format timestamps
+function formatTime(dateStr: string | null): string {
+  if (!dateStr) return "Just now";
+  const date = new Date(dateStr);
+  const now = new Date();
+  const diffMs = now.getTime() - date.getTime();
+  const diffMins = Math.floor(diffMs / 60000);
+  const diffHours = Math.floor(diffMs / 3600000);
+  const diffDays = Math.floor(diffMs / 86400000);
+
+  if (diffMins < 1) return "Just now";
+  if (diffMins < 60) return `${diffMins}m ago`;
+  if (diffHours < 24) return `${diffHours}h ago`;
+  if (diffDays < 7) return `${diffDays}d ago`;
+  return date.toLocaleDateString();
 }

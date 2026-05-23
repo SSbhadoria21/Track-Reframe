@@ -13,6 +13,25 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const userEmail = session?.user?.email;
+
+    if (!userEmail) {
+      return NextResponse.json({ error: "Unauthorized: No email found in session" }, { status: 401 });
+    }
+
+    // ALWAYS resolve the UUID from the database to guarantee foreign key match
+    const { data: profile } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", userEmail)
+      .maybeSingle();
+      
+    if (!profile?.id) {
+      return NextResponse.json({ error: "Unauthorized: User not found in database" }, { status: 401 });
+    }
+    
+    const userId = profile.id;
+
     const { inviteCode } = await request.json();
 
     if (!inviteCode) {
@@ -35,7 +54,7 @@ export async function POST(request: Request) {
       .from("community_members")
       .select("id")
       .eq("room_id", community.id)
-      .eq("user_id", user.id)
+      .eq("user_id", userId)
       .single();
 
     if (existingMember) {
@@ -47,7 +66,7 @@ export async function POST(request: Request) {
       .from("community_members")
       .insert({
         room_id: community.id,
-        user_id: user.id,
+        user_id: userId,
         role: "member",
       });
 

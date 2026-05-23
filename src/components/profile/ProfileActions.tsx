@@ -1,17 +1,18 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { useRouter } from "next/navigation";
 
 interface ProfileActionsProps {
   targetUserId: string;
+  username: string;
 }
 
-export function ProfileActions({ targetUserId }: ProfileActionsProps) {
+export function ProfileActions({ targetUserId, username }: ProfileActionsProps) {
+  const router = useRouter();
   const [isFollowing, setIsFollowing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [hoveringFollow, setHoveringFollow] = useState(false);
-  const [isMessageOpen, setIsMessageOpen] = useState(false);
 
   useEffect(() => {
     const checkFollowStatus = async () => {
@@ -89,7 +90,7 @@ export function ProfileActions({ targetUserId }: ProfileActionsProps) {
         </button>
 
         <button 
-          onClick={() => setIsMessageOpen(true)}
+          onClick={() => router.push(`/messages/${username}`)}
           className="w-10 h-10 rounded-xl bg-white/5 border border-white/10 flex items-center justify-center text-text-secondary hover:text-white hover:bg-white/10 transition-colors"
           title="Message"
         >
@@ -108,54 +109,6 @@ export function ProfileActions({ targetUserId }: ProfileActionsProps) {
           </svg>
         </button>
       </div>
-
-      <AnimatePresence>
-        {isMessageOpen && (
-          <>
-            <motion.div 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 bg-background/60 backdrop-blur-sm z-[100]"
-              onClick={() => setIsMessageOpen(false)}
-            />
-            <motion.div
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
-              transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed top-0 right-0 bottom-0 w-[360px] bg-surface border-l border-white/10 z-[101] flex flex-col shadow-2xl"
-            >
-              <div className="p-5 border-b border-white/10 flex justify-between items-center bg-black/20">
-                <h3 className="font-display font-bold text-white flex items-center gap-2">
-                  <svg className="w-5 h-5 text-indigo" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M8 10h.01M12 10h.01M16 10h.01M9 16H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-5l-5 5v-5z" />
-                  </svg>
-                  Messages
-                </h3>
-                <button onClick={() => setIsMessageOpen(false)} className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition-colors">
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
-                </button>
-              </div>
-              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-black/10">
-                <div className="w-16 h-16 rounded-2xl bg-indigo/10 flex items-center justify-center mb-4 border border-indigo/20">
-                  <svg className="w-8 h-8 text-indigo" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8" />
-                  </svg>
-                </div>
-                <h4 className="font-bold text-white mb-2">Direct Messaging Coming Soon</h4>
-                <p className="text-sm text-text-secondary">Slide into the director's chair. Private messaging will be available in the next feature rollout.</p>
-                <button 
-                  onClick={() => setIsMessageOpen(false)}
-                  className="mt-6 px-6 py-2 rounded-xl bg-white/10 text-white text-sm font-medium hover:bg-white/20 transition-colors"
-                >
-                  Got it
-                </button>
-              </div>
-            </motion.div>
-          </>
-        )}
-      </AnimatePresence>
     </>
   );
 }

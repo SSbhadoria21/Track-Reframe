@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import { FollowListSheet } from "./FollowListSheet";
+import { createClient } from "@/lib/supabase/client";
 
 interface StatCard {
   label: string;
@@ -60,7 +61,42 @@ export function StatsRow({ userId }: { userId?: string }) {
     };
 
     window.addEventListener('followToggled', handleFollowToggle);
-    return () => window.removeEventListener('followToggled', handleFollowToggle);
+
+    // Setup Supabase Realtime channel for follows
+    let isMounted = true;
+    let channel: any;
+
+    if (userId) {
+      const supabase = createClient();
+      const channelName = `profile_stats:${userId}`;
+
+      channel = supabase
+        .channel(channelName)
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'follows', filter: `following_id=eq.${userId}` },
+          async () => {
+            if (isMounted) fetchStats();
+          }
+        )
+        .on(
+          'postgres_changes',
+          { event: '*', schema: 'public', table: 'follows', filter: `follower_id=eq.${userId}` },
+          async () => {
+            if (isMounted) fetchStats();
+          }
+        )
+        .subscribe();
+    }
+
+    return () => {
+      isMounted = false;
+      window.removeEventListener('followToggled', handleFollowToggle);
+      if (channel) {
+        const supabase = createClient();
+        supabase.removeChannel(channel);
+      }
+    };
   }, [userId]);
 
   return (

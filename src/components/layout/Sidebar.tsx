@@ -62,8 +62,25 @@ export function Sidebar() {
         setStats((prev) => ({ ...prev, saved: Math.max(0, prev.saved - 1) }));
       }
     };
+    // When the current user follows/unfollows someone, re-fetch stats to update following count
+    const handleFollowToggled = async () => {
+      try {
+        const res = await fetch("/api/user/stats", { cache: "no-store" });
+        if (res.ok) {
+          const data = await res.json();
+          setStats((prev) => ({ 
+            ...prev, 
+            followers: data.stats.followers || 0,
+          }));
+        }
+      } catch { /* ignore */ }
+    };
     window.addEventListener("postSaved", handlePostSaved);
-    return () => window.removeEventListener("postSaved", handlePostSaved);
+    window.addEventListener("followToggled", handleFollowToggled);
+    return () => {
+      window.removeEventListener("postSaved", handlePostSaved);
+      window.removeEventListener("followToggled", handleFollowToggled);
+    };
   }, []);
 
   // Listen for real-time follower changes

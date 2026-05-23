@@ -156,8 +156,17 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
       if (!res.ok) {
         setFollowing(prev);
       } else {
-        // Only notify sidebar if WE are the ones being followed (not applicable here usually)
-        // but we keep the event for local UI consistency if needed.
+        const data = await res.json();
+        // Use the confirmed state from the server
+        setFollowing(data.following);
+        // Notify sidebar and other components about the follow change
+        window.dispatchEvent(new CustomEvent('followToggled', { 
+          detail: { 
+            targetId: post.user_id, 
+            following: data.following,
+            follower_count: data.follower_count 
+          } 
+        }));
       }
     } catch { setFollowing(prev); }
   };

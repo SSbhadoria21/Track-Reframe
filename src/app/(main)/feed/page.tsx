@@ -4,6 +4,7 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { FilmReelIcon, CameraIcon } from "@/components/icons";
 import { FeedPost } from "@/components/feed/FeedPost";
 import { PostComposer } from "@/components/feed/PostComposer";
+import { RecentListingsSidebar } from "@/components/feed/RecentListingsSidebar";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
 import React from "react";
@@ -188,10 +189,12 @@ export default function FeedPage() {
       {/* Main Feed Content */}
       <div
         ref={scrollContainerRef}
-        className="flex-1 overflow-y-auto scrollbar-hide"
+        className="flex-1 overflow-y-auto scrollbar-hide relative"
       >
-        <div className="max-w-[640px] mx-auto py-6 px-4 flex flex-col gap-6">
-          {/* Post Composer — only show if logged in */}
+        <div className="max-w-[1000px] mx-auto flex gap-8 justify-center py-6 px-4 lg:px-8">
+          {/* Left Column: Feed */}
+          <div className="flex-1 max-w-[640px] flex flex-col gap-6 w-full shrink-0">
+            {/* Post Composer — only show if logged in */}
           {currentUser && (
             <PostComposer
               userInitials={userInitials}
@@ -290,6 +293,10 @@ export default function FeedPage() {
               <p className="text-xs text-text-muted italic">You&apos;ve reached the end of the credits.</p>
             </div>
           )}
+          </div>
+          
+          {/* Right Column: Sidebar */}
+          <RecentListingsSidebar />
         </div>
       </div>
 

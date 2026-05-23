@@ -8,7 +8,19 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const session = await getServerSession(authOptions);
     const user = session?.user as any;
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user || !user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    const { data: profile } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (!profile?.id) {
+      return NextResponse.json({ error: "Unauthorized: User not found in database" }, { status: 401 });
+    }
+    
+    const userId = profile.id;
 
     const body = await req.json();
     const { listingId, message } = body;
@@ -18,7 +30,7 @@ export async function POST(req: NextRequest) {
       .from("crew_interests")
       .insert({
         listing_id: listingId,
-        user_id: user.id,
+        user_id: userId,
         message,
       })
       .select()

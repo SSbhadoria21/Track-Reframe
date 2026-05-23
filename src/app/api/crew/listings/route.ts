@@ -19,7 +19,7 @@ export async function GET(req: NextRequest) {
         *,
         users (id, username, display_name, avatar_url)
       `)
-      .eq("is_active", true)
+      .order("is_active", { ascending: false })
       .order("created_at", { ascending: false });
 
     if (city) {
@@ -61,7 +61,20 @@ export async function POST(req: NextRequest) {
     const supabase = await createClient();
     const session = await getServerSession(authOptions);
     const user = session?.user as any;
-    if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if (!user || !user.email) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+
+    // ALWAYS resolve the UUID from the database to guarantee foreign key match
+    const { data: profile } = await supabase
+      .from("users")
+      .select("id")
+      .eq("email", user.email)
+      .maybeSingle();
+
+    if (!profile?.id) {
+      return NextResponse.json({ error: "Unauthorized: User not found in database" }, { status: 401 });
+    }
+    
+    const userId = profile.id;
 
     const body = await req.json();
     const { projectTitle, projectType, rolesNeeded, description, experienceLevel, city, country, shootStartDate, shootEndDate, compensationType, compensationDetails, contactMethod, contactValue } = body;
@@ -69,7 +82,7 @@ export async function POST(req: NextRequest) {
     const { data, error } = await supabase
       .from("crew_listings")
       .insert({
-        user_id: user.id,
+        user_id: userId,
         project_title: projectTitle,
         project_type: projectType,
         roles_needed: rolesNeeded || [],

@@ -16,7 +16,7 @@ export async function POST(req: Request) {
     }
 
     const body = await req.json();
-    const { username, selectedCraft, tagline, currentProjectStage } = body;
+    const { username, selectedCraft, tagline } = body;
 
     let userId = (session.user as any).id;
     const userEmail = session.user.email;
@@ -47,7 +47,6 @@ export async function POST(req: Request) {
         email: session.user.email,
         roles: [selectedCraft],
         bio: tagline,
-        current_project_stage: currentProjectStage || 'Development',
         onboarding_complete: true,
         updated_at: new Date().toISOString(),
       }, { onConflict: 'id' });

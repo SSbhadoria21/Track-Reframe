@@ -1,5 +1,6 @@
 import { NextAuthOptions } from "next-auth";
 import GoogleProvider from "next-auth/providers/google";
+import CredentialsProvider from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
 
@@ -13,6 +14,41 @@ export const authOptions: NextAuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID!,
       clientSecret: process.env.GOOGLE_CLIENT_SECRET!,
+    }),
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" }
+      },
+      async authorize(credentials) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required.");
+        }
+
+        const supabase = createClient(
+          process.env.SUPABASE_URL!,
+          process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+        );
+
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: credentials.email,
+          password: credentials.password,
+        });
+
+        if (error || !data.user) {
+          throw new Error(error?.message || "Invalid email or password.");
+        }
+
+        return {
+          id: data.user.id,
+          email: data.user.email,
+          name: data.user.user_metadata?.display_name || data.user.email,
+          image: data.user.user_metadata?.avatar_url,
+          username: data.user.user_metadata?.username,
+          role: data.user.user_metadata?.role,
+        };
+      }
     }),
   ],
   session: {
@@ -55,17 +91,20 @@ export const authOptions: NextAuthOptions = {
             ? `${baseUsername}_${Math.random().toString(36).slice(2, 6)}`
             : baseUsername;
 
-          const newUserId = uuidv4();
+          // If user.id is already a UUID (e.g. from credentials provider/Supabase auth), use it.
+          const isUserUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(user.id || "");
+          const newUserId = isUserUuid ? user.id : uuidv4();
 
           const { error: insertError } = await supabaseAdmin
             .from("users")
             .insert({
               id: newUserId,
               email: user.email,
-              username: finalUsername,
+              username: (user as any).username || finalUsername,
               display_name: user.name || finalUsername,
               avatar_url: user.image,
-              roles: ["creator"],
+              roles: (user as any).role ? [(user as any).role.toLowerCase()] : ["creator"],
+              role: (user as any).role ? (user as any).role.toLowerCase() : "creator",
               onboarding_complete: false,
               coins: 0,
             });
@@ -74,7 +113,7 @@ export const authOptions: NextAuthOptions = {
             console.error("DATABASE ERROR (Create User):", insertError);
             return false;
           }
-          console.log("New user created successfully:", finalUsername);
+          console.log("New user created successfully:", (user as any).username || finalUsername);
         }
 
         return true;
@@ -92,7 +131,7 @@ export const authOptions: NextAuthOptions = {
       return session;
     },
     async jwt({ token, user, trigger }) {
-      // On initial sign-in, we have the user object from Google
+      // On initial sign-in, we have the user object from Google or Credentials
       if (user && user.email) {
         const { data: profile } = await supabaseAdmin
           .from("users")
@@ -100,11 +139,9 @@ export const authOptions: NextAuthOptions = {
           .eq("email", user.email)
           .single();
 
-        if (profile) {
-          token.sub = profile.id;
-          token.role = profile.role;
-          token.username = profile.username;
-        }
+        token.sub = profile?.id || user.id;
+        token.role = profile?.role || (user as any).role || "creator";
+        token.username = profile?.username || (user as any).username;
       }
 
       // If token.sub is NOT a UUID (it's the Google ID number), we MUST fix it

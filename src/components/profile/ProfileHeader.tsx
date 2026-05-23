@@ -151,7 +151,7 @@ export function ProfileHeader({
             </button>
           </div>
         ) : (
-          <ProfileActions targetUserId={userId} />
+          <ProfileActions targetUserId={userId} username={username} />
         )}
       </div>
 

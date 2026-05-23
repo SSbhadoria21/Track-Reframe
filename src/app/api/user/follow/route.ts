@@ -71,27 +71,45 @@ export async function POST(req: Request) {
       // Unfollow
       const { error } = await supabaseAdmin.from("follows").delete().eq("id", existing.id);
       if (error) throw error;
-      return NextResponse.json({ following: false });
+
+      // Fetch updated counts for the target user
+      const { count: targetFollowerCount } = await supabaseAdmin
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", target_user_id);
+
+      return NextResponse.json({ following: false, follower_count: targetFollowerCount || 0 });
     } else {
       // Follow
       const { error } = await supabaseAdmin.from("follows").insert({ follower_id: userId, following_id: target_user_id });
       if (error) throw error;
       
+      // Send notification (use correct column names from schema)
       const { data: userProfile } = await supabaseAdmin.from("users").select("display_name").eq("id", userId).single();
       const displayName = userProfile?.display_name || "Someone";
       
       await supabaseAdmin.from("notifications").insert({
         user_id: target_user_id,
-        actor_id: userId,
+        related_user_id: userId,
         type: "follow",
         title: `${displayName} started following you`,
-        content: `Connect and collaborate on your next project!`,
+        body: `Connect and collaborate on your next project!`,
         related_entity_id: userId
+      }).then(({ error: notifError }) => {
+        // Log but don't fail the follow action if notification insert fails
+        if (notifError) console.error("Notification insert error (non-fatal):", notifError.message);
       });
 
-      return NextResponse.json({ following: true });
+      // Fetch updated counts for the target user
+      const { count: targetFollowerCount } = await supabaseAdmin
+        .from("follows")
+        .select("*", { count: "exact", head: true })
+        .eq("following_id", target_user_id);
+
+      return NextResponse.json({ following: true, follower_count: targetFollowerCount || 0 });
     }
   } catch (err: any) {
+    console.error("Follow API error:", err.message);
     return NextResponse.json({ error: err.message }, { status: 500 });
   }
 }
