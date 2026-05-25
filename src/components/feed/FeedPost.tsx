@@ -54,9 +54,10 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
   const [commentError, setCommentError] = useState<string | null>(null);
   const [showMenu, setShowMenu] = useState(false);
   const [isEditing, setIsEditing] = useState(false);
-  const [editContent, setEditContent] = useState(post.content);
+  const [editContent, setEditContent] = useState(post.content || "");
   const [scriptExpanded, setScriptExpanded] = useState(false);
   const [repostCount, setRepostCount] = useState(post.repost_count || post.reposts || 0);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
 
   const isOwner = currentUser?.id === (post.author?.id || post.user_id);
 
@@ -108,8 +109,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
 
   // ─── Share ───
   const handleShare = () => {
-    navigator.clipboard.writeText(`${window.location.origin}/post/${post.id}`);
-    toast.success("Link copied to clipboard!");
+    setIsShareModalOpen(true);
   };
 
   // ─── Realtime Subscriptions ───
@@ -284,10 +284,10 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
       {/* CONTENT */}
       {isEditing ? (
         <div className="flex flex-col gap-2">
-          <textarea value={editContent} onChange={(e) => setEditContent(e.target.value)}
+          <textarea value={editContent || ""} onChange={(e) => setEditContent(e.target.value)}
             className="w-full min-h-[80px] bg-background border border-amber/50 rounded-lg p-3 text-sm text-text-primary focus:outline-none focus:border-amber transition-colors resize-none" />
           <div className="flex justify-end gap-2">
-            <button onClick={() => { setIsEditing(false); setEditContent(post.content); }} className="px-3 py-1.5 rounded-md hover:bg-elevated text-xs font-medium text-text-muted transition-colors">Cancel</button>
+            <button onClick={() => { setIsEditing(false); setEditContent(post.content || ""); }} className="px-3 py-1.5 rounded-md hover:bg-elevated text-xs font-medium text-text-muted transition-colors">Cancel</button>
             <button onClick={() => { onEdit?.(post.id, editContent); setIsEditing(false); }} className="px-3 py-1.5 rounded-md bg-amber/20 text-amber hover:bg-amber/30 text-xs font-bold transition-colors">Save Changes</button>
           </div>
         </div>
@@ -506,6 +506,106 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* SHARE MODAL */}
+      <AnimatePresence>
+        {isShareModalOpen && (
+          <ShareModal 
+            post={post}
+            onClose={() => setIsShareModalOpen(false)}
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function ShareModal({ post, onClose }: { post: any, onClose: () => void }) {
+  const url = `${window.location.origin}/post/${post.id}`;
+  const title = encodeURIComponent(`Check out this post on Track Reframe`);
+
+  const shareOptions = [
+    {
+      name: "WhatsApp",
+      color: "bg-[#25D366]",
+      icon: <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.888-.788-1.487-1.761-1.66-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51a12.8 12.8 0 0 0-.57-.01c-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 0 1-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 0 1-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 0 1 2.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0 0 12.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 0 0 5.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 0 0-3.48-8.413Z"/></svg>,
+      href: `https://api.whatsapp.com/send?text=${title}%20${url}`
+    },
+    {
+      name: "X",
+      color: "bg-[#0A0A0F]",
+      icon: <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>,
+      href: `https://twitter.com/intent/tweet?url=${url}&text=${title}`
+    },
+    {
+      name: "Facebook",
+      color: "bg-[#1877F2]",
+      icon: <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.469h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.469h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/></svg>,
+      href: `https://www.facebook.com/sharer/sharer.php?u=${url}`
+    },
+    {
+      name: "Reddit",
+      color: "bg-[#FF4500]",
+      icon: <svg className="w-6 h-6 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M12 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0zm5.01 4.744c.688 0 1.25.561 1.25 1.249a1.25 1.25 0 0 1-2.498.056l-2.597-.547-.8 3.747c1.824.07 3.48.632 4.674 1.488.308-.309.73-.491 1.207-.491.968 0 1.754.786 1.754 1.754 0 .716-.435 1.333-1.01 1.614a3.111 3.111 0 0 1 .042.52c0 2.694-3.13 4.87-7.004 4.87-3.874 0-7.004-2.176-7.004-4.87 0-.183.015-.366.043-.534A1.748 1.748 0 0 1 4.028 12c0-.968.786-1.754 1.754-1.754.463 0 .898.196 1.207.49 1.207-.883 2.878-1.43 4.744-1.487l.885-4.182a.342.342 0 0 1 .14-.197.35.35 0 0 1 .238-.042l2.906.617a1.214 1.214 0 0 1 1.108-.701zM9.25 12C8.56 12 8 12.56 8 13.25c0 .69.56 1.25 1.25 1.25.69 0 1.25-.56 1.25-1.25C10.5 12.56 9.94 12 9.25 12zm5.5 0c-.69 0-1.25.56-1.25 1.25 0 .69.56 1.25 1.25 1.25.69 0 1.25-.56 1.25-1.25C16 12.56 15.44 12 14.75 12zm-5.022 3.713c-.104.1-.104.256 0 .366.326.326.852.544 1.58.64a4.471 4.471 0 0 0 1.385 0c.728-.096 1.254-.314 1.58-.64.104-.11.104-.266 0-.366a.254.254 0 0 0-.36 0l-.014.014c-.2.193-.615.378-1.205.452a3.791 3.791 0 0 1-1.185 0c-.59-.074-1.005-.259-1.205-.452l-.014-.014a.254.254 0 0 0-.36 0z"/></svg>,
+      href: `https://reddit.com/submit?url=${url}&title=${title}`
+    }
+  ];
+
+  const handleCopy = () => {
+    navigator.clipboard.writeText(url);
+    toast.success("Link copied!");
+  };
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/80 backdrop-blur-sm" onClick={onClose}>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-md bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+      >
+        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
+          <h2 className="font-display font-bold text-lg text-white">Share</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition-colors">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+        </div>
+        
+        <div className="p-6 flex flex-col gap-6">
+          <div className="flex gap-6 overflow-x-auto pb-2 scrollbar-hide snap-x">
+            {shareOptions.map((opt) => (
+              <a 
+                key={opt.name}
+                href={opt.href}
+                target="_blank"
+                rel="noreferrer"
+                className="flex flex-col items-center gap-2 min-w-[60px] snap-start group"
+              >
+                <div className={`w-14 h-14 rounded-full flex items-center justify-center ${opt.color} shadow-lg shadow-black/20 group-hover:scale-105 group-active:scale-95 transition-all border border-white/10`}>
+                  {opt.icon}
+                </div>
+                <span className="text-xs font-medium text-text-muted group-hover:text-white transition-colors">{opt.name}</span>
+              </a>
+            ))}
+          </div>
+
+          <div className="flex items-center gap-2 bg-black/40 border border-white/10 rounded-xl p-1.5 pl-4">
+            <input 
+              type="text" 
+              readOnly 
+              value={url}
+              className="flex-1 bg-transparent text-sm text-text-muted focus:outline-none truncate selection:bg-indigo/30"
+            />
+            <button 
+              onClick={handleCopy}
+              className="px-4 py-2 bg-white/10 hover:bg-white/20 text-white rounded-lg text-sm font-bold transition-colors shrink-0"
+            >
+              Copy
+            </button>
+          </div>
+        </div>
+      </motion.div>
     </div>
   );
 }

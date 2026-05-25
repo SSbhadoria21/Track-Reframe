@@ -14,8 +14,10 @@ import {
   UserIcon,
   BellIcon,
   CoinIcon,
+  ChatIcon,
 } from "@/components/icons";
 import { useSession, signOut } from "next-auth/react";
+import { toast } from "react-hot-toast";
 
 export function Sidebar() {
   const pathname = usePathname();
@@ -25,6 +27,7 @@ export function Sidebar() {
   const [userProfile, setUserProfile] = useState<{ displayName: string; username: string; initials: string; avatarUrl?: string | null } | null>(null);
   const [showFollowers, setShowFollowers] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   // Real stats from DB — initialized to 0
   const [stats, setStats] = useState({ posts: 0, followers: 0, saved: 0, coins: 0, awards: 0 });
@@ -114,6 +117,17 @@ export function Sidebar() {
         await supabase.removeChannel(existingChannel);
       }
 
+      // Fetch initial unread notifications count
+      const { count: unreadCount } = await supabase
+        .from("notifications")
+        .select("*", { count: "exact", head: true })
+        .eq("user_id", profile.id)
+        .eq("is_read", false);
+      
+      if (isMounted) {
+        setUnreadNotifications(unreadCount || 0);
+      }
+
       if (!isMounted) return;
 
       channel = supabase
@@ -129,6 +143,18 @@ export function Sidebar() {
               const data = await res.json();
               setStats((prev) => ({ ...prev, followers: data.stats.followers || 0 }));
             }
+          }
+        )
+        .on(
+          'broadcast',
+          { event: 'new_notification' },
+          (payload) => {
+            if (!isMounted) return;
+            const newNotif = payload.payload;
+            toast(newNotif.title, {
+              icon: newNotif.type === 'like' ? '❤️' : newNotif.type === 'comment' ? '💬' : '👋'
+            });
+            setUnreadNotifications((prev) => prev + 1);
           }
         )
         .subscribe();
@@ -198,7 +224,7 @@ export function Sidebar() {
   const navItems = [
     { name: "Home Feed", href: "/feed", icon: FilmReelIcon },
     { name: "Studio", href: "/studio", icon: CameraIcon },
-    { name: "Script Coverage", href: "/studio/script-coverage", icon: ClapperboardIcon },
+    { name: "Messages", href: "/messages", icon: ChatIcon },
     { name: "Discover", href: "/discover", icon: ApertureIcon },
     { name: "Festivals", href: "/discover/festivals", icon: FilmReelIcon },
     { name: "Community", href: "/community", icon: ClapperboardIcon },
@@ -248,11 +274,17 @@ export function Sidebar() {
           <li>
             <Link
               href="/notifications"
-              className="flex items-center gap-3 h-12 px-4 rounded-md text-text-secondary hover:bg-elevated/50 hover:text-text-primary transition-colors"
+              className="flex items-center justify-between h-12 px-4 rounded-md text-text-secondary hover:bg-elevated/50 hover:text-text-primary transition-colors"
             >
-              <BellIcon className="w-5 h-5" />
-              Notifications
-              {/* Only show badge if there are unread notifications */}
+              <div className="flex items-center gap-3">
+                <BellIcon className="w-5 h-5" />
+                Notifications
+              </div>
+              {unreadNotifications > 0 && (
+                <div className="bg-error text-white text-[10px] font-bold px-2 py-0.5 rounded-full">
+                  {unreadNotifications > 99 ? '99+' : unreadNotifications}
+                </div>
+              )}
             </Link>
           </li>
           <li>

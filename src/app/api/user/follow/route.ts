@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { broadcastNotification } from "@/lib/supabase/server-broadcast";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -88,16 +89,20 @@ export async function POST(req: Request) {
       const { data: userProfile } = await supabaseAdmin.from("users").select("display_name").eq("id", userId).single();
       const displayName = userProfile?.display_name || "Someone";
       
-      await supabaseAdmin.from("notifications").insert({
+      const notif = {
         user_id: target_user_id,
         related_user_id: userId,
         type: "follow",
         title: `${displayName} started following you`,
         body: `Connect and collaborate on your next project!`,
-        related_entity_id: userId
-      }).then(({ error: notifError }) => {
-        // Log but don't fail the follow action if notification insert fails
+        related_entity_id: userId,
+        related_entity_type: "user"
+      };
+      await supabaseAdmin.from("notifications").insert(notif).then(async ({ error: notifError }) => {
         if (notifError) console.error("Notification insert error (non-fatal):", notifError.message);
+        else {
+          await broadcastNotification(`sidebar_stats:${target_user_id}`, notif);
+        }
       });
 
       // Fetch updated counts for the target user

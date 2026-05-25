@@ -117,7 +117,7 @@ export function RecentListingsSidebar() {
           {["#Cinematography", "#IndieFilm", "#VFX", "#DirectorLife"].map((tag, i) => (
             <div key={i} className="p-4 border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors">
               <h3 className="font-bold text-sm text-white">{tag}</h3>
-              <p className="text-xs text-text-muted mt-0.5">{Math.floor(Math.random() * 50) + 10} posts</p>
+              <p className="text-xs text-text-muted mt-0.5">{[42, 28, 56, 15][i]} posts</p>
             </div>
           ))}
         </div>

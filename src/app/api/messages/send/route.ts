@@ -2,6 +2,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import { NextRequest, NextResponse } from "next/server";
+import { broadcastNotification } from "@/lib/supabase/server-broadcast";
 
 export async function POST(req: NextRequest) {
   try {
@@ -73,6 +74,30 @@ export async function POST(req: NextRequest) {
       .single();
 
     if (msgError) throw msgError;
+
+    // --- NOTIFICATION & TOAST LOGIC ---
+    const supabaseAdmin = require("@supabase/supabase-js").createClient(
+      process.env.SUPABASE_URL!,
+      process.env.SUPABASE_SERVICE_ROLE_KEY!
+    );
+    
+    const displayName = user.name || "Someone";
+    const notif = {
+      user_id: targetUserId,
+      related_user_id: userId,
+      type: "message",
+      title: `New message from ${displayName}`,
+      body: content.trim(),
+      related_entity_id: message.id,
+      related_entity_type: "message"
+    };
+
+    await supabaseAdmin.from("notifications").insert(notif).then(async ({ error: notifError }: any) => {
+      if (notifError) console.error("Message notification error:", notifError.message);
+      else {
+        await broadcastNotification(`sidebar_stats:${targetUserId}`, notif);
+      }
+    });
 
     return NextResponse.json({ message });
   } catch (error: any) {

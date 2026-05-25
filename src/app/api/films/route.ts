@@ -48,7 +48,8 @@ export async function POST(req: Request) {
       genre_tags,
       runtime_seconds,
       synopsis,
-      release_year
+      release_year,
+      post_to_feed
     } = body;
 
     if (!title || !video_link) {
@@ -77,22 +78,24 @@ export async function POST(req: Request) {
     }
 
     // Optionally, create a post for the feed
-    const { error: postError } = await supabase
-      .from("posts")
-      .insert({
-        user_id: userId,
-        type: 'film',
-        film_link: video_link,
-        film_title: title,
-        thumbnail_url,
-        genre_tags: genre_tags || [],
-        synopsis,
-        runtime_seconds
-      });
-      
-    if (postError) {
-      console.error("Error creating feed post for film:", postError);
-      // We don't fail the whole request if the post fails, but log it.
+    if (post_to_feed) {
+      const { error: postError } = await supabase
+        .from("posts")
+        .insert({
+          user_id: userId,
+          type: 'film',
+          film_link: video_link,
+          film_title: title,
+          thumbnail_url,
+          genre_tags: genre_tags || [],
+          synopsis,
+          runtime_seconds
+        });
+        
+      if (postError) {
+        console.error("Error creating feed post for film:", postError);
+        // We don't fail the whole request if the post fails, but log it.
+      }
     }
 
     return NextResponse.json({ success: true, film });

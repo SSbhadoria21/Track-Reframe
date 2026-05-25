@@ -23,19 +23,26 @@ export function CoverBanner({ coverUrl, userId, isOwner = true, onUpdate }: Cove
 
     setIsUploading(true);
     try {
-      // 1. Upload to storage
+      // 1. Upload to storage via Server API
       const fileExt = file.name.split('.').pop();
       const filePath = `${userId}/cover_${Date.now()}.${fileExt}`;
       
-      const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, file);
+      const formData = new FormData();
+      formData.append("file", file);
+      formData.append("bucket", "profiles");
+      formData.append("filePath", filePath);
 
-      if (uploadError) throw uploadError;
+      const uploadRes = await fetch("/api/user/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.error || "Upload failed");
+      }
+
+      const { publicUrl } = await uploadRes.json();
 
       // 2. Update profile
       const res = await fetch("/api/user/profile", {

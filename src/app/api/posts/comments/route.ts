@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { broadcastNotification } from "@/lib/supabase/server-broadcast";
 
 export const dynamic = 'force-dynamic';
 
@@ -102,14 +103,17 @@ export async function POST(req: NextRequest) {
 
     if (post && post.user_id !== user.id) {
       const displayName = user.name || "Someone";
-      await supabaseAdmin.from("notifications").insert({
+      const notif = {
         user_id: post.user_id,
-        actor_id: user.id,
+        related_user_id: user.id,
         type: "comment",
         title: `${displayName} commented on your post`,
-        content: `"${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
-        target_id: post_id
-      });
+        body: `"${content.substring(0, 50)}${content.length > 50 ? '...' : ''}"`,
+        related_entity_id: post_id,
+        related_entity_type: "post"
+      };
+      await supabaseAdmin.from("notifications").insert(notif);
+      await broadcastNotification(`sidebar_stats:${post.user_id}`, notif);
     }
 
     const { data: author } = await supabaseAdmin

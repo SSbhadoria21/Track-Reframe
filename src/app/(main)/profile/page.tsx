@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { motion, AnimatePresence } from "framer-motion";
+import { useSession } from "next-auth/react";
 
 import { CoverBanner } from "@/components/profile/CoverBanner";
 import { ProfileHeader } from "@/components/profile/ProfileHeader";
@@ -23,57 +24,58 @@ export default function ProfilePage() {
   const [showCreateModal, setShowCreateModal] = useState(false);
 
 
+  const { data: session, status } = useSession();
+
   const fetchUser = async () => {
+    if (status === "loading") return;
+    if (!session?.user?.email) return;
+
     const supabase = createClient();
-    const { data: { user: authUser } } = await supabase.auth.getUser();
+    const { data: profile } = await supabase
+      .from("users")
+      .select("*")
+      .eq("email", session.user.email)
+      .single();
     
-    if (authUser) {
-      const { data: profile } = await supabase
-        .from("users")
-        .select("*")
-        .eq("id", authUser.id)
-        .single();
-      
-      
-      if (profile) {
-        setUser(profile);
-        // Check for unseen wins
-        const { data: win } = await supabase
+    if (profile) {
+      setUser(profile);
+      // Check for unseen wins
+      const { data: win } = await supabase
+        .from("competition_submissions")
+        .select("*, competition:competitions(title)")
+        .eq("user_id", profile.id)
+        .eq("submission_status", "winner")
+        .eq("win_animation_seen", false)
+        .limit(1)
+        .maybeSingle();
+
+      if (win) {
+        setWinningComp(win);
+        setShowWinAnimation(true);
+        // Mark as seen
+        await supabase
           .from("competition_submissions")
-          .select("*, competition:competitions(title)")
-          .eq("user_id", authUser.id)
-          .eq("submission_status", "winner")
-          .eq("win_animation_seen", false)
-          .limit(1)
-          .maybeSingle();
-
-        if (win) {
-          setWinningComp(win);
-          setShowWinAnimation(true);
-          // Mark as seen
-          await supabase
-            .from("competition_submissions")
-            .update({ win_animation_seen: true })
-            .eq("id", win.id);
-        }
-      } else {
-
-        // Fallback if no profile row
-        setUser({
-          id: authUser.id,
-          display_name: authUser.user_metadata?.display_name || "Creator Profile",
-          username: authUser.user_metadata?.username || "creator",
-          role: authUser.user_metadata?.role || "Director",
-        });
+          .update({ win_animation_seen: true })
+          .eq("id", win.id);
       }
+    } else {
+      // Fallback if no profile row
+      setUser({
+        id: (session.user as any).id || "unknown",
+        display_name: session.user.name || "Creator Profile",
+        username: "creator",
+        role: "Director",
+        email: session.user.email,
+        avatar_url: session.user.image,
+      });
     }
   };
 
   useEffect(() => {
     fetchUser();
-  }, [refreshTrigger]);
+  }, [refreshTrigger, session, status]);
 
-  if (!user) {
+  if (status === "loading" || !user) {
     return (
       <div className="flex items-center justify-center h-[60vh]">
         <div className="w-10 h-10 border-2 border-amber border-t-transparent rounded-full animate-spin" />

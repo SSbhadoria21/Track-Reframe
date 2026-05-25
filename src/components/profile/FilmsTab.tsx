@@ -182,7 +182,8 @@ function AddFilmModal({ onClose, onAdded, userId }: any) {
     genre_tags: "",
     runtime_seconds: "",
     synopsis: "",
-    release_year: new Date().getFullYear().toString()
+    release_year: new Date().getFullYear().toString(),
+    post_to_feed: false
   });
 
   const supabase = createClient();
@@ -219,7 +220,8 @@ function AddFilmModal({ onClose, onAdded, userId }: any) {
         thumbnail_url: finalThumbnail,
         genre_tags: formData.genre_tags.split(",").map(s => s.trim()).filter(Boolean),
         runtime_seconds: parseInt(formData.runtime_seconds) || 0,
-        release_year: parseInt(formData.release_year) || new Date().getFullYear()
+        release_year: parseInt(formData.release_year) || new Date().getFullYear(),
+        post_to_feed: formData.post_to_feed
       };
 
       const res = await fetch("/api/films", {
@@ -288,6 +290,19 @@ function AddFilmModal({ onClose, onAdded, userId }: any) {
             <div>
               <label className="block text-xs font-bold text-text-muted uppercase tracking-wider mb-1.5">Synopsis</label>
               <textarea value={formData.synopsis || ""} onChange={e => setFormData({...formData, synopsis: e.target.value})} rows={3} className="w-full bg-black/40 border border-white/10 rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-indigo transition-colors resize-none" placeholder="A brief description of your film..." />
+            </div>
+
+            <div className="flex items-center gap-3 pt-2">
+              <input 
+                type="checkbox" 
+                id="post_to_feed"
+                checked={formData.post_to_feed}
+                onChange={e => setFormData({...formData, post_to_feed: e.target.checked})}
+                className="w-4 h-4 rounded border-white/20 bg-black/40 text-indigo focus:ring-indigo focus:ring-offset-background cursor-pointer accent-indigo"
+              />
+              <label htmlFor="post_to_feed" className="text-sm text-white cursor-pointer select-none">
+                Share to my Home Feed
+              </label>
             </div>
 
             <div className="pt-4 border-t border-white/5 flex justify-end gap-3">

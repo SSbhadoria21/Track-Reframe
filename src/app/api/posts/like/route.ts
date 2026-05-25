@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { broadcastNotification } from "@/lib/supabase/server-broadcast";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -61,14 +62,17 @@ export async function POST(req: NextRequest) {
 
         if (post.user_id !== user.id) {
           const displayName = user.name || "Someone";
-          await supabaseAdmin.from("notifications").insert({
+          const notif = {
             user_id: post.user_id,
-            actor_id: user.id,
+            related_user_id: user.id,
             type: "like",
             title: `${displayName} liked your post`,
-            content: post.content ? `"${post.content.substring(0, 50)}${post.content.length > 50 ? '...' : ''}"` : "Liked your post",
-            target_id: post_id
-          });
+            body: post.content ? `"${post.content.substring(0, 50)}${post.content.length > 50 ? '...' : ''}"` : "Liked your post",
+            related_entity_id: post_id,
+            related_entity_type: "post"
+          };
+          await supabaseAdmin.from("notifications").insert(notif);
+          await broadcastNotification(`sidebar_stats:${post.user_id}`, notif);
         }
       }
 

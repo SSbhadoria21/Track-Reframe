@@ -355,16 +355,23 @@ function AvatarCropperModal({ imageSrc, userId, onClose, onSave, onComplete }: a
       const fileName = `avatar_${Date.now()}.${fileExt}`;
       const filePath = `${userId}/${fileName}`;
 
-      // Upload to Supabase Storage
-      const { error: uploadError } = await supabase.storage
-        .from('profiles')
-        .upload(filePath, croppedImageBlob, { contentType: 'image/jpeg', upsert: true });
+      // Upload via Server API to bypass client RLS issues
+      const formData = new FormData();
+      formData.append("file", croppedImageBlob, fileName);
+      formData.append("bucket", "profiles");
+      formData.append("filePath", filePath);
 
-      if (uploadError) throw uploadError;
+      const uploadRes = await fetch("/api/user/upload", {
+        method: "POST",
+        body: formData,
+      });
 
-      const { data: { publicUrl } } = supabase.storage
-        .from('profiles')
-        .getPublicUrl(filePath);
+      if (!uploadRes.ok) {
+        const errorData = await uploadRes.json();
+        throw new Error(errorData.error || "Upload failed");
+      }
+
+      const { publicUrl } = await uploadRes.json();
 
       // Update users table
       const res = await fetch("/api/user/profile", {

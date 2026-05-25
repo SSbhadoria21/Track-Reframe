@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import Link from "next/link";
 import { ApertureIcon, CameraIcon, FilmReelIcon } from "@/components/icons";
 
 /* ─── Data ─── */
-const TABS = ["All Films", "New Creators", "Director Style", "By Era", "Mood", "Bucket Lists", "Crew", "Film DNA", "Festivals"];
+const TABS = ["Movie Database", "New Creators", "Director Style", "By Era", "Mood", "Bucket Lists", "Crew", "Film DNA", "Festivals"];
 
 
 const MOODS = [
@@ -56,6 +56,36 @@ const ERAS = [
 export default function DiscoverPage() {
   const [activeTab, setActiveTab] = useState(0);
   const [searchQuery, setSearchQuery] = useState("");
+  const [tmdbMovies, setTmdbMovies] = useState<any[]>([]);
+  const [isLoadingTmdb, setIsLoadingTmdb] = useState(true);
+  const [selectedMovie, setSelectedMovie] = useState<any | null>(null);
+
+  useEffect(() => {
+    if (activeTab !== 0) return;
+    
+    const fetchTmdb = async () => {
+      setIsLoadingTmdb(true);
+      try {
+        let url = `/api/tmdb?endpoint=/trending/movie/week`;
+        if (searchQuery.trim()) {
+          url = `/api/tmdb?endpoint=/search/movie&query=${encodeURIComponent(searchQuery.trim())}`;
+        }
+        
+        const res = await fetch(url);
+        if (res.ok) {
+          const data = await res.json();
+          setTmdbMovies(data.results || []);
+        }
+      } catch (err) {
+        console.error("Error fetching TMDB", err);
+      } finally {
+        setIsLoadingTmdb(false);
+      }
+    };
+
+    const debounceTimer = setTimeout(fetchTmdb, 500);
+    return () => clearTimeout(debounceTimer);
+  }, [activeTab, searchQuery]);
 
   return (
     <div className="flex-1 p-6 lg:p-10 max-w-7xl mx-auto overflow-y-auto scrollbar-hide pb-20">
@@ -99,34 +129,54 @@ export default function DiscoverPage() {
       <AnimatePresence mode="wait">
         <motion.div key={activeTab} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.2 }}>
 
-          {/* ALL FILMS */}
+          {/* MOVIE DATABASE (TMDB) */}
           {activeTab === 0 && (
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-              {MOCK_FILMS.map((film) => (
-                <div key={film.title} className="group bg-surface border border-white/[0.06] rounded-xl overflow-hidden cursor-pointer hover:border-amber/30 transition-all">
-                  {/* Poster placeholder */}
-                  <div className="h-40 bg-gradient-to-br from-elevated to-[#0D0D12] flex items-center justify-center relative overflow-hidden">
-                    <FilmReelIcon className="w-12 h-12 text-white/[0.06]" />
-                    <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
-                      <span className="opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold text-amber">View Film →</span>
-                    </div>
-                    {/* Rating badge */}
-                    <div className="absolute top-3 right-3 bg-black/60 backdrop-blur-sm px-2.5 py-1 rounded-lg flex items-center gap-1">
-                      <svg className="w-3.5 h-3.5 text-amber fill-amber" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /></svg>
-                      <span className="text-xs font-bold text-amber">{film.rating}</span>
-                    </div>
-                  </div>
-                  <div className="p-4">
-                    <h3 className="font-bold text-sm mb-1 group-hover:text-amber transition-colors">{film.title}</h3>
-                    <p className="text-xs text-text-muted mb-2">by {film.director}</p>
-                    <div className="flex gap-1.5 flex-wrap">
-                      {film.genres.map((g) => (
-                        <span key={g} className="text-[9px] uppercase font-bold tracking-wider px-2 py-0.5 rounded bg-amber/10 text-amber border border-amber/20">{g}</span>
-                      ))}
-                    </div>
-                  </div>
+            <div className="flex flex-col gap-6">
+              {isLoadingTmdb ? (
+                <div className="flex justify-center py-20">
+                  <div className="w-8 h-8 border-2 border-amber/40 border-t-amber rounded-full animate-spin" />
                 </div>
-              ))}
+              ) : tmdbMovies.length === 0 ? (
+                <div className="text-center py-20 text-text-muted">No movies found.</div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-5">
+                  {tmdbMovies.map((movie) => (
+                    <div 
+                      key={movie.id} 
+                      onClick={() => setSelectedMovie(movie)}
+                      className="group bg-surface border border-white/[0.06] rounded-xl overflow-hidden cursor-pointer hover:border-amber/30 transition-all flex flex-col shadow-lg shadow-black/20 hover:shadow-xl hover:shadow-black/40"
+                    >
+                      <div className="aspect-[2/3] bg-gradient-to-br from-elevated to-[#0D0D12] relative overflow-hidden">
+                        {movie.poster_path ? (
+                          <img 
+                            src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} 
+                            alt={movie.title} 
+                            className="absolute inset-0 w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
+                          />
+                        ) : (
+                          <div className="absolute inset-0 flex items-center justify-center">
+                            <FilmReelIcon className="w-12 h-12 text-white/[0.06]" />
+                          </div>
+                        )}
+                        <div className="absolute inset-0 bg-black/0 group-hover:bg-black/40 transition-colors flex items-center justify-center">
+                          <span className="opacity-0 group-hover:opacity-100 transition-opacity text-sm font-bold text-amber shadow-black drop-shadow-md">View Details →</span>
+                        </div>
+                        {/* Rating badge */}
+                        <div className="absolute top-2 right-2 bg-black/80 backdrop-blur-md px-2 py-1 rounded-lg flex items-center gap-1 border border-white/10">
+                          <svg className="w-3.5 h-3.5 text-amber fill-amber" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /></svg>
+                          <span className="text-xs font-bold text-amber">{movie.vote_average ? movie.vote_average.toFixed(1) : "NR"}</span>
+                        </div>
+                      </div>
+                      <div className="p-4 flex-1 flex flex-col bg-[#0A0A0F]">
+                        <h3 className="font-bold text-sm mb-1 group-hover:text-amber transition-colors line-clamp-1">{movie.title}</h3>
+                        <p className="text-xs text-text-muted mt-auto">
+                          {movie.release_date ? new Date(movie.release_date).getFullYear() : "Unknown"}
+                        </p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
 
@@ -289,6 +339,179 @@ export default function DiscoverPage() {
 
         </motion.div>
       </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedMovie && (
+          <MovieModal 
+            movie={selectedMovie} 
+            onClose={() => setSelectedMovie(null)} 
+          />
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+function MovieModal({ movie, onClose }: { movie: any, onClose: () => void }) {
+  const [extraDetails, setExtraDetails] = useState<any>(null);
+  const [aiFacts, setAiFacts] = useState<string>("");
+  const [loadingExtra, setLoadingExtra] = useState(true);
+
+  useEffect(() => {
+    if (!movie) return;
+    
+    let isMounted = true;
+    
+    const fetchExtraData = async () => {
+      setLoadingExtra(true);
+      try {
+        // Fetch budget and revenue
+        const tmdbRes = await fetch(`/api/tmdb?endpoint=/movie/${movie.id}`);
+        if (tmdbRes.ok) {
+          const tmdbData = await tmdbRes.json();
+          if (isMounted) setExtraDetails(tmdbData);
+        }
+
+        // Fetch AI facts
+        const aiRes = await fetch(`/api/ai/movie-facts`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            title: movie.title,
+            year: movie.release_date ? new Date(movie.release_date).getFullYear() : '',
+            overview: movie.overview
+          })
+        });
+        if (aiRes.ok) {
+          const aiData = await aiRes.json();
+          if (isMounted && aiData.facts) setAiFacts(aiData.facts);
+        }
+      } catch (err) {
+        console.error("Failed to fetch extra movie details:", err);
+      } finally {
+        if (isMounted) setLoadingExtra(false);
+      }
+    };
+
+    fetchExtraData();
+    return () => { isMounted = false; };
+  }, [movie]);
+
+  const formatCurrency = (val: number) => {
+    if (!val) return "N/A";
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 }).format(val);
+  };
+
+  if (!movie) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 bg-background/90 backdrop-blur-md" onClick={onClose}>
+      <motion.div 
+        initial={{ opacity: 0, scale: 0.95, y: 20 }}
+        animate={{ opacity: 1, scale: 1, y: 0 }}
+        exit={{ opacity: 0, scale: 0.95, y: 20 }}
+        onClick={(e) => e.stopPropagation()}
+        className="w-full max-w-3xl bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden flex flex-col max-h-[90vh]"
+      >
+        <div className="relative aspect-video sm:aspect-[21/9] bg-black shrink-0">
+          {movie.backdrop_path ? (
+            <img 
+              src={`https://image.tmdb.org/t/p/w1280${movie.backdrop_path}`} 
+              alt={movie.title} 
+              className="absolute inset-0 w-full h-full object-cover opacity-60"
+            />
+          ) : movie.poster_path ? (
+             <img 
+              src={`https://image.tmdb.org/t/p/w1280${movie.poster_path}`} 
+              alt={movie.title} 
+              className="absolute inset-0 w-full h-full object-cover opacity-60 blur-xl"
+            />
+          ) : null}
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0A0A0F] via-surface/40 to-transparent" />
+          
+          <button onClick={onClose} className="absolute top-4 right-4 p-2 rounded-full bg-black/40 hover:bg-black/60 text-white transition-colors backdrop-blur-sm z-10">
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
+          </button>
+
+          <div className="absolute bottom-0 left-0 right-0 p-6 flex items-end gap-6 translate-y-6">
+             {movie.poster_path && (
+                <img 
+                  src={`https://image.tmdb.org/t/p/w500${movie.poster_path}`} 
+                  alt={movie.title} 
+                  className="w-24 sm:w-32 rounded-lg shadow-2xl border border-white/10 hidden sm:block object-cover"
+                />
+             )}
+             <div className="flex-1 pb-6">
+               <h2 className="font-display font-bold text-2xl sm:text-4xl text-white mb-3 shadow-black drop-shadow-lg">{movie.title}</h2>
+               <div className="flex items-center gap-3 text-sm font-medium flex-wrap">
+                  <div className="flex items-center gap-1 bg-amber/20 text-amber px-2.5 py-1 rounded-md border border-amber/30 backdrop-blur-sm">
+                    <svg className="w-4 h-4 fill-amber" viewBox="0 0 24 24"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" /></svg>
+                    <span>{movie.vote_average ? movie.vote_average.toFixed(1) : "NR"}</span>
+                  </div>
+                  {movie.release_date && (
+                    <span className="bg-white/10 text-white px-2.5 py-1 rounded-md border border-white/10 backdrop-blur-sm">
+                      {new Date(movie.release_date).getFullYear()}
+                    </span>
+                  )}
+                  {movie.original_language && (
+                     <span className="bg-white/10 text-white px-2.5 py-1 rounded-md border border-white/10 backdrop-blur-sm uppercase">
+                      {movie.original_language}
+                    </span>
+                  )}
+               </div>
+             </div>
+          </div>
+        </div>
+        
+        <div className="px-6 pt-10 pb-8 bg-[#0A0A0F] overflow-y-auto scrollbar-hide flex-1">
+           <h3 className="text-lg font-bold text-white mb-3 flex items-center gap-2">
+             <FilmReelIcon className="w-5 h-5 text-amber" />
+             Overview
+           </h3>
+           <p className="text-text-secondary leading-relaxed mb-8 text-sm sm:text-base">
+             {movie.overview || "No overview available for this movie."}
+           </p>
+
+           {/* AI SECTION */}
+           {aiFacts ? (
+             <div className="mb-8 bg-amber/5 border border-amber/20 rounded-xl p-5 relative overflow-hidden">
+               <div className="absolute top-0 left-0 w-1 h-full bg-gradient-to-b from-amber to-transparent"></div>
+               <h3 className="text-sm font-bold text-amber mb-2 flex items-center gap-2">
+                 <ApertureIcon className="w-4 h-4 animate-slow-spin" />
+                 AI Director's Insight
+               </h3>
+               <p className="text-sm text-text-secondary leading-relaxed">
+                 {aiFacts}
+               </p>
+             </div>
+           ) : loadingExtra ? (
+             <div className="mb-8 bg-white/5 rounded-xl p-5 animate-pulse flex flex-col gap-2 border border-white/5">
+                <div className="h-4 bg-white/10 rounded w-1/4"></div>
+                <div className="h-3 bg-white/5 rounded w-full mt-2"></div>
+                <div className="h-3 bg-white/5 rounded w-5/6"></div>
+             </div>
+           ) : null}
+           
+           <div className="grid grid-cols-2 sm:grid-cols-3 gap-4">
+              <div className="bg-surface rounded-xl p-4 border border-white/5">
+                 <span className="block text-[10px] text-text-muted mb-1.5 uppercase font-bold tracking-wider">Release Date</span>
+                 <span className="text-sm text-white font-medium">{movie.release_date || "Unknown"}</span>
+              </div>
+              <div className="bg-surface rounded-xl p-4 border border-white/5">
+                 <span className="block text-[10px] text-text-muted mb-1.5 uppercase font-bold tracking-wider">Budget</span>
+                 <span className="text-sm text-white font-medium">
+                   {loadingExtra ? "..." : extraDetails?.budget ? formatCurrency(extraDetails.budget) : "N/A"}
+                 </span>
+              </div>
+              <div className="bg-surface rounded-xl p-4 border border-white/5">
+                 <span className="block text-[10px] text-text-muted mb-1.5 uppercase font-bold tracking-wider">Worldwide Box Office</span>
+                 <span className="text-sm text-white font-medium">
+                   {loadingExtra ? "..." : extraDetails?.revenue ? formatCurrency(extraDetails.revenue) : "N/A"}
+                 </span>
+              </div>
+           </div>
+        </div>
+      </motion.div>
     </div>
   );
 }
