@@ -148,7 +148,7 @@ export function Sidebar() {
         .on(
           'broadcast',
           { event: 'new_notification' },
-          (payload) => {
+          (payload: any) => {
             if (!isMounted) return;
             const newNotif = payload.payload;
             toast(newNotif.title, {
