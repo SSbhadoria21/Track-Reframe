@@ -46,7 +46,7 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
         order: dep.department_order,
         isExpanded: dep.is_expanded,
         subtotal: dep.subtotal,
-        items: dep.budget_line_items.sort((a, b) => a.row_order - b.row_order).map(item => ({
+        items: dep.budget_line_items.sort((a: any, b: any) => a.row_order - b.row_order).map((item: any) => ({
           id: item.id,
           name: item.name,
           roleDescription: item.role_description,
@@ -134,7 +134,7 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 
       // Upsert line items
       if (dep.items && dep.items.length > 0) {
-        const itemsToUpsert = dep.items.map((item, index) => ({
+        const itemsToUpsert = dep.items.map((item: any, index: number) => ({
           id: item.id.includes('-') ? item.id : undefined,
           department_id: currentDepId,
           budget_id: id,

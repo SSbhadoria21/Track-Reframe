@@ -3,7 +3,6 @@
 import { Department, PaymentType } from '@/lib/budget-defaults';
 import { useBudgetStore } from '@/store/budgetStore';
 import { ChevronDown, ChevronRight, Plus, Trash2, Copy, GripVertical } from 'lucide-react';
-import { formatCurrency } from '@/lib/utils'; // I need to create this util or just use Intl.NumberFormat
 
 interface DepartmentCardProps {
   department: Department;

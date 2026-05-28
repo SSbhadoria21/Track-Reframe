@@ -1,0 +1,157 @@
+@import url('https://fonts.googleapis.com/css2?family=Courier+Prime:ital,wght@0,400;0,700;1,400&display=swap');
+
+.screenplay-editor-container {
+  display: flex;
+  justify-content: center;
+  padding: 40px;
+  background-color: #0A0A0F;
+  min-height: 100vh;
+}
+
+.screenplay-editor .ProseMirror {
+  font-family: 'Courier Prime', 'Courier New', Courier, monospace;
+  font-size: 16px; /* 12pt */
+  line-height: 1.2;
+  color: #000;
+  outline: none;
+  min-height: 1056px; /* US Letter height approx at 96dpi */
+  width: 816px; /* US Letter width */
+  background: #FAFAF8;
+  padding-top: 96px; /* 1" top */
+  padding-bottom: 96px; /* 1" bottom */
+  box-shadow: 0 0 40px rgba(0,0,0,0.8);
+}
+
+.screenplay-editor .ProseMirror p {
+  margin: 0;
+  white-space: pre-wrap;
+}
+
+/* Base margins for Action */
+.sp-action {
+  padding-left: 144px; /* 1.5" */
+  padding-right: 96px; /* 1" */
+  margin-bottom: 1em !important;
+}
+
+/* Scene Heading */
+.sp-scene-heading {
+  padding-left: 144px;
+  padding-right: 96px;
+  text-transform: uppercase;
+  font-weight: bold;
+  margin-top: 1.5em !important;
+  margin-bottom: 1em !important;
+}
+
+/* Character */
+.sp-character {
+  padding-left: 355px; /* ~3.7" from left */
+  padding-right: 96px;
+  text-transform: uppercase;
+  margin-top: 1em !important;
+}
+
+/* Dialogue */
+.sp-dialogue {
+  padding-left: 240px; /* ~2.5" */
+  padding-right: 192px; /* ~2" */
+}
+
+/* Parenthetical */
+.sp-parenthetical {
+  padding-left: 297px; /* ~3.1" */
+  padding-right: 230px; /* ~2.4" */
+}
+
+/* Transition */
+.sp-transition {
+  padding-left: 576px; /* ~6" */
+  padding-right: 96px;
+  text-transform: uppercase;
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+/* Shot */
+.sp-shot {
+  padding-left: 144px;
+  padding-right: 96px;
+  text-transform: uppercase;
+  margin-top: 1em !important;
+  margin-bottom: 1em !important;
+}
+
+/* General */
+.sp-general {
+  padding-left: 144px;
+  padding-right: 96px;
+  font-style: italic;
+  color: #555;
+  margin-bottom: 1em !important;
+}
+
+
+/* ProseMirror Placeholder */
+.ProseMirror p.is-editor-empty:first-child::before {
+  color: #adb5bd;
+  content: attr(data-placeholder);
+  float: left;
+  height: 0;
+  pointer-events: none;
+}
+
+/* Collaboration Cursors */
+.collaboration-cursor__caret {
+  border-left: 2px solid #0d0d0d;
+  border-right: 2px solid #0d0d0d;
+  margin-left: -2px;
+  margin-right: -2px;
+  pointer-events: none;
+  position: relative;
+  word-break: normal;
+}
+
+.collaboration-cursor__label {
+  border-radius: 3px 3px 3px 0;
+  color: #fff;
+  font-family: sans-serif;
+  font-size: 10px;
+  font-weight: bold;
+  left: -2px;
+  line-height: normal;
+  padding: 2px 4px;
+  position: absolute;
+  top: -1.2em;
+  user-select: none;
+  white-space: nowrap;
+}
+
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .screenplay-editor-container, .screenplay-editor-container * {
+    visibility: visible;
+  }
+  .screenplay-editor-container {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 100%;
+    margin: 0;
+    padding: 0;
+    background: white;
+  }
+  .screenplay-editor .ProseMirror {
+    box-shadow: none !important;
+    width: 8.5in;
+    margin: 0;
+    padding-top: 1in;
+    padding-bottom: 1in;
+    min-height: auto;
+  }
+  .fixed, .bg-\[\#111118\], select, button, .shrink-0 {
+    display: none !important;
+  }
+}

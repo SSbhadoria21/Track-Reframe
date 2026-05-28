@@ -42,13 +42,13 @@ const HERO_TOOLS = [
 ];
 
 const SECONDARY_TOOLS = [
-  { title: "AI Script Coverage", desc: "Get structural, character, pacing, and dialogue analysis for your screenplay.", icon: FilmStripIcon, href: "/studio/script-coverage" },
-  { title: "Mood Board Generator", desc: "AI-generated visual mood boards from scene descriptions.", icon: SpotlightIcon, href: "/studio/mood-board" },
-  { title: "Budget Estimator", desc: "Estimate your film's budget based on project parameters.", icon: ClapperboardIcon, href: "/studio/budget-estimator" },
-  { title: "Call Sheet Generator", desc: "Generate professional call sheets for your shoot days.", icon: FilmReelIcon, href: "/studio/call-sheet" },
-  { title: "Director Style Analyzer", desc: "Analyze any director's signature techniques.", icon: ApertureIcon, href: "/studio/director-analyzer" },
-  { title: "Find Your Crew", desc: "Post listings and find collaborators for your project.", icon: CameraIcon, href: "/studio/find-crew" },
-  { title: "Collaborative Editor", desc: "Real-time multi-writer screenplay editing.", icon: FilmStripIcon, href: "/studio/collab-editor" },
+  { title: "AI Script Coverage", desc: "Get structural, character, pacing, and dialogue analysis for your screenplay.", icon: FilmStripIcon, href: "/studio/script-coverage", badge: "✦ AI Powered", stat: "1,100+ scripts analyzed", accent: "indigo" },
+  { title: "Mood Board Generator", desc: "AI-generated visual mood boards from scene descriptions.", icon: SpotlightIcon, href: "/studio/mood-board", badge: "✦ AI Powered", stat: "850+ boards created", accent: "indigo" },
+  { title: "Budget Estimator", desc: "Estimate your film's budget based on project parameters.", icon: ClapperboardIcon, href: "/studio/budget-estimator", badge: null, stat: "3,200+ budgets estimated", accent: "amber" },
+  { title: "Call Sheet Generator", desc: "Generate professional call sheets for your shoot days.", icon: FilmReelIcon, href: "/studio/call-sheet", badge: null, stat: "4,500+ call sheets made", accent: "amber" },
+  { title: "Director Style Analyzer", desc: "Analyze any director's signature techniques.", icon: ApertureIcon, href: "/studio/director-analyzer", badge: "✦ AI Powered", stat: "600+ styles analyzed", accent: "indigo" },
+  { title: "Find Your Crew", desc: "Post listings and find collaborators for your project.", icon: CameraIcon, href: "/studio/find-crew", badge: null, stat: "12,000+ connections", accent: "amber" },
+  { title: "Collaborative Editor", desc: "Real-time multi-writer screenplay editing.", icon: FilmStripIcon, href: "/studio/collab-editor", badge: null, stat: "2,400+ writers collaborating", accent: "amber" },
 ];
 
 export default function StudioPage() {
@@ -114,24 +114,48 @@ export default function StudioPage() {
 
       {/* Secondary Tools */}
       <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-5">More Tools</h3>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
         {SECONDARY_TOOLS.map((tool, i) => (
           <motion.div
             key={tool.title}
-            initial={{ opacity: 0, y: 15 }}
+            initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 + i * 0.06, duration: 0.4 }}
+            transition={{ delay: 0.3 + i * 0.1, duration: 0.5 }}
           >
             <Link
               href={tool.href}
-              className="group flex items-start gap-4 p-5 rounded-xl border border-white/[0.06] bg-surface hover:border-white/15 hover:bg-elevated transition-all duration-200"
+              className={`group flex flex-col h-full min-h-[280px] rounded-2xl p-7 border transition-all duration-300 hover:-translate-y-1 relative overflow-hidden ${
+                tool.accent === "indigo"
+                  ? "bg-surface border-indigo/20 hover:border-indigo/40 hover:shadow-[0_0_30px_rgba(108,99,255,0.1)]"
+                  : "bg-surface border-amber/20 hover:border-amber/40 hover:shadow-[0_0_30px_rgba(245,166,35,0.1)]"
+              }`}
             >
-              <tool.icon className="w-10 h-10 text-amber shrink-0 mt-0.5" />
-              <div className="flex-1 min-w-0">
-                <h4 className="text-sm font-bold mb-1 group-hover:text-amber transition-colors">{tool.title}</h4>
-                <p className="text-xs text-text-muted leading-relaxed">{tool.desc}</p>
+              {/* Glow bg */}
+              <div className={`absolute -right-12 -top-12 w-40 h-40 rounded-full blur-3xl transition-opacity opacity-20 group-hover:opacity-40 ${
+                tool.accent === "indigo" ? "bg-indigo/30" : "bg-amber/30"
+              }`} />
+
+              <div className="relative z-10 flex flex-col flex-1">
+                <tool.icon className={`w-16 h-16 mb-5 ${tool.accent === "indigo" ? "text-indigo" : "text-amber"}`} />
+                <h2 className="text-xl font-bold mb-2">{tool.title}</h2>
+
+                {tool.badge && (
+                  <span className="inline-flex w-max px-2.5 py-1 rounded-full bg-indigo/15 border border-indigo/30 text-indigo text-[10px] font-bold mb-3">
+                    {tool.badge}
+                  </span>
+                )}
+
+                <p className="text-sm text-text-secondary leading-relaxed mb-4 flex-1">{tool.desc}</p>
+                <span className="text-[11px] text-text-muted mb-4">{tool.stat}</span>
+
+                <span className={`inline-flex w-max items-center gap-2 px-5 py-2.5 rounded-lg font-bold text-sm transition-transform group-hover:scale-[1.03] ${
+                  tool.accent === "indigo"
+                    ? "bg-indigo text-white"
+                    : "bg-amber text-[#0A0A0F]"
+                }`}>
+                  Open Tool →
+                </span>
               </div>
-              <span className="text-text-muted group-hover:text-amber transition-colors text-lg mt-1">→</span>
             </Link>
           </motion.div>
         ))}
