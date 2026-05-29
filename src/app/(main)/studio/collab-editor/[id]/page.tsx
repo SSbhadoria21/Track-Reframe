@@ -7,7 +7,7 @@ import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
 import { ScreenplayExtension, ElementType } from '@/components/studio/collab-editor/ScreenplayExtension'
-import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Copy, Mail, MessageSquare, CheckCircle2, Send } from 'lucide-react'
+import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Copy, Mail, MessageSquare, CheckCircle2, Send, Save } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useMemo, use, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -16,37 +16,65 @@ import './editor.css'
 const colors = ['#F5A623', '#6C63FF', '#10B981', '#F43F5E', '#0EA5E9'];
 const names = ['Quentin', 'Christopher', 'Greta', 'Martin', 'Steven', 'Sofia'];
 
+// Global cache to prevent "A Yjs Doc connected to room already exists!" errors
+// on React strict mode double-mounts or frequent navigations.
+const yjsGlobalCache = new Map<string, { doc: Y.Doc, prov: WebrtcProvider }>();
+
 export default function CollabEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
   const [provider, setProvider] = useState<WebrtcProvider | null>(null);
   const [ydoc, setYdoc] = useState<Y.Doc | null>(null);
 
   useEffect(() => {
-    let prov: WebrtcProvider;
     let saveTimeout: NodeJS.Timeout;
-    const doc = new Y.Doc()
-    
+    const roomName = `track-reframe-collab-${resolvedParams.id}`;
+
     const supabase = createBrowserClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL!,
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    )
+    );
 
     const initDoc = async () => {
-      // 1. Fetch initial content from DB
-      const { data } = await supabase.from('script_content').select('yjs_document').eq('script_id', resolvedParams.id).single();
-      if (data && data.yjs_document) {
-         try {
-           const buf = Buffer.from(data.yjs_document, 'base64');
-           Y.applyUpdate(doc, new Uint8Array(buf));
-         } catch (e) {
-           console.error("Failed to load initial Yjs doc from DB", e);
-         }
-      }
+      let doc: Y.Doc;
+      let prov: WebrtcProvider;
 
-      // 2. Setup WebRTC Provider
-      prov = new WebrtcProvider(`track-reframe-collab-${resolvedParams.id}`, doc, {
-        signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com']
-      })
+      if (yjsGlobalCache.has(roomName)) {
+        const cached = yjsGlobalCache.get(roomName)!;
+        doc = cached.doc;
+        prov = cached.prov;
+        if (!prov) {
+          // If prov is null, another useEffect is currently initializing it.
+          // We can just return early, the other useEffect will set the state.
+          return;
+        }
+      } else {
+        doc = new Y.Doc();
+        // Set cache immediately to block concurrent useEffects in Strict Mode
+        yjsGlobalCache.set(roomName, { doc, prov: null as any });
+        
+        // 1. Fetch initial content from DB
+        const { data } = await supabase.from('script_content').select('yjs_document').eq('script_id', resolvedParams.id).single();
+        if (data && data.yjs_document) {
+           try {
+             let b64 = data.yjs_document;
+             // Postgres bytea columns are returned as hex strings prefixed with \x
+             if (typeof b64 === 'string' && b64.startsWith('\\x')) {
+               b64 = Buffer.from(b64.slice(2), 'hex').toString('utf8');
+             }
+             const buf = Buffer.from(b64, 'base64');
+             Y.applyUpdate(doc, new Uint8Array(buf));
+           } catch (e) {
+             console.warn("Failed to load initial Yjs doc from DB, starting fresh.", e);
+           }
+        }
+
+        // 2. Setup WebRTC Provider
+        prov = new WebrtcProvider(roomName, doc, {
+          signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com']
+        });
+        
+        yjsGlobalCache.set(roomName, { doc, prov });
+      }
       
       const handleUpdate = () => {
         clearTimeout(saveTimeout);
@@ -63,7 +91,7 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
           } catch (err) {
             console.error("Auto-save content failed", err)
           }
-        }, 5000);
+        }, 1000); // reduced to 1000ms for saving every word almost instantly
       }
       
       doc.on('update', handleUpdate)
@@ -76,8 +104,8 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
 
     return () => {
       clearTimeout(saveTimeout)
-      if (doc) doc.destroy()
-      if (prov) prov.destroy()
+      // We purposefully DO NOT destroy the doc and provider here
+      // to keep them alive in the cache and prevent WebrtcProvider errors.
     }
   }, [resolvedParams.id])
 
@@ -109,6 +137,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   // Notes States
   const [notes, setNotes] = useState<any[]>([]);
   const [newNote, setNewNote] = useState('');
+  const [isSaving, setIsSaving] = useState(false);
 
   // Share Modal States
   const [isShareOpen, setIsShareOpen] = useState(false);
@@ -125,6 +154,35 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
   ), []);
+
+  const handleManualSave = async () => {
+    setIsSaving(true);
+    try {
+      if (editorRef.current && ydoc) {
+        // Save YJS Content
+        const stateVector = Y.encodeStateAsUpdate(ydoc);
+        const base64 = Buffer.from(stateVector).toString('base64');
+        await supabase.from('script_content').upsert({
+          script_id: scriptId,
+          yjs_document: base64,
+          updated_at: new Date().toISOString()
+        }, { onConflict: 'script_id' });
+        
+        // Save Metadata
+        await supabase.from('scripts').update({
+          title: scriptTitle,
+          word_count: wordCount,
+          writing_time_seconds: writingTime,
+          thinking_time_seconds: thinkingTime,
+          page_count: Math.max(1, Math.ceil(wordCount / 180)),
+          updated_at: new Date().toISOString()
+        }).eq('id', scriptId);
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    setTimeout(() => setIsSaving(false), 2000);
+  };
 
   const extractStats = (ed: any) => {
     if (!ed) return;
@@ -499,6 +557,9 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
               </div>
             ))}
           </div>
+          <button onClick={handleManualSave} disabled={isSaving} className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-md flex items-center gap-1 transition-colors">
+            <Save className="w-3.5 h-3.5" /> {isSaving ? 'Saved!' : 'Save'}
+          </button>
           <button className="bg-white/10 hover:bg-white/20 text-white font-bold text-xs px-3 py-1.5 rounded-md flex items-center gap-1 transition-colors group relative">
             <Download className="w-3.5 h-3.5" /> Export
             <div className="absolute right-0 top-full mt-1 w-32 bg-[#1A1A24] border border-white/10 rounded-md shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50">

@@ -1,8 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useMemo } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { createBrowserClient } from "@supabase/ssr";
 import { Search, Plus, Filter, Clock, FileText, Users, MoreVertical, LayoutGrid, List as ListIcon, Folder, Trash2, Archive, Star, X, Loader2 } from "lucide-react";
 
@@ -19,6 +20,81 @@ export default function MyScriptsPage() {
   const [modalTab, setModalTab] = useState<'create' | 'join'>('create');
   const [joinLink, setJoinLink] = useState('');
 
+  const [scripts, setScripts] = useState<any[]>([]);
+  const [userId, setUserId] = useState<string>('');
+  
+  const { data: session } = useSession();
+
+  useEffect(() => {
+    const fetchScripts = async () => {
+      if (!session?.user?.email) return;
+
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      let uid = (session.user as any).id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uid || "");
+      if (!isUuid) {
+        const { data: userProfile } = await supabase.from("users").select("id").eq("email", session.user.email).maybeSingle();
+        if (userProfile) {
+          uid = userProfile.id;
+        } else {
+          return;
+        }
+      }
+      
+      setUserId(uid);
+
+      // Fetch scripts owned by user
+      const { data: ownedScripts, error: ownedErr } = await supabase.from('scripts').select('*').eq('user_id', uid).order('updated_at', { ascending: false });
+      if (ownedErr) console.error("Error fetching owned scripts:", ownedErr);
+      
+      // Fetch collab records for these scripts to count collaborators
+      const scriptIds = ownedScripts?.map(s => s.id) || [];
+      const { data: ownedCollabs } = scriptIds.length > 0 
+        ? await supabase.from('script_collaborators').select('script_id, user_id').in('script_id', scriptIds)
+        : { data: [] };
+
+      // Fetch scripts user collaborates on (but doesn't own)
+      const { data: collabRecords } = await supabase.from('script_collaborators').select('script_id').eq('user_id', uid);
+      const collabScriptIds = collabRecords?.map(c => c.script_id) || [];
+      
+      const { data: collabScripts } = collabScriptIds.length > 0
+        ? await supabase.from('scripts').select('*').in('id', collabScriptIds).neq('user_id', uid)
+        : { data: [] };
+
+      // Map to attach collaborators to scripts
+      const allMap = new Map();
+      
+      ownedScripts?.forEach(s => {
+        const script = { ...s, script_collaborators: ownedCollabs?.filter(c => c.script_id === s.id) || [] };
+        allMap.set(s.id, script);
+      });
+      
+      collabScripts?.forEach(s => {
+        // Just minimal structure for collab scripts
+        const script = { ...s, script_collaborators: [{ user_id: uid }] };
+        allMap.set(s.id, script);
+      });
+      
+      const all = Array.from(allMap.values()).sort((a: any, b: any) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+      setScripts(all);
+    };
+    fetchScripts();
+  }, []);
+
+  const displayScripts = useMemo(() => {
+    if (activeTab === "My Scripts") {
+      return scripts.filter(s => s.user_id === userId && (!s.script_collaborators || s.script_collaborators.length <= 1));
+    } else if (activeTab === "Shared with Me") {
+      return scripts.filter(s => s.user_id !== userId);
+    }
+    // "All Scripts" includes everything
+    return scripts;
+  }, [scripts, activeTab, userId]);
+
   const handleCreateScript = async (e: React.FormEvent) => {
     e.preventDefault();
     if (modalTab === 'join') {
@@ -33,7 +109,7 @@ export default function MyScriptsPage() {
       return;
     }
 
-    if (!newTitle.trim()) return;
+    if (!newTitle.trim() || !session?.user?.email) return;
     setIsCreating(true);
     setErrorMsg(null);
     
@@ -43,13 +119,20 @@ export default function MyScriptsPage() {
         process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
       );
       
-      const { data: userData } = await supabase.auth.getUser();
+      let uid = (session.user as any).id;
+      const isUuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-5][0-9a-f]{3}-[089ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(uid || "");
+      if (!isUuid) {
+        const { data: userProfile } = await supabase.from("users").select("id").eq("email", session.user.email).maybeSingle();
+        if (userProfile) {
+          uid = userProfile.id;
+        }
+      }
       
       const { data, error } = await supabase.from('scripts').insert({
         title: newTitle,
         project_type: newType,
-        owner_id: userData.user?.id || null,
-        user_id: userData.user?.id || null, // Satisfy existing schema's not-null constraint
+        owner_id: uid,
+        user_id: uid, // Satisfy existing schema's not-null constraint
       }).select('id').single();
       
       if (error) throw error;
@@ -67,7 +150,7 @@ export default function MyScriptsPage() {
       {/* Sidebar */}
       <div className="w-64 border-r border-white/5 bg-[#111118] flex flex-col shrink-0">
         <div className="p-4 border-b border-white/5">
-          <button onClick={() => setIsModalOpen(true)} className="w-full flex items-center justify-center gap-2 bg-[#F5A623] text-black font-bold py-2.5 rounded-lg hover:bg-[#F5A623]/90 transition-colors">
+          <button suppressHydrationWarning onClick={() => setIsModalOpen(true)} className="w-full flex items-center justify-center gap-2 bg-[#F5A623] text-black font-bold py-2.5 rounded-lg hover:bg-[#F5A623]/90 transition-colors">
             <Plus className="w-5 h-5" /> New Script
           </button>
         </div>
@@ -134,11 +217,19 @@ export default function MyScriptsPage() {
 
         {/* Script Grid */}
         <div className="flex-1 overflow-y-auto p-6">
-          {activeTab === "All Scripts" ? (
+          {displayScripts.length > 0 ? (
             <div className={`grid gap-6 ${viewMode === 'grid' ? 'grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4' : 'grid-cols-1'}`}>
-              <ScriptCard title="The Last Sunset" type="FEATURE FILM" pages={120} time="45h 12m" edited="2h ago" />
-              <ScriptCard title="Neon Dreams" type="SHORT FILM" pages={15} time="6h 30m" edited="1d ago" />
-              <ScriptCard title="Quantum Drift" type="TV PILOT" pages={60} time="22h 15m" edited="3d ago" />
+              {displayScripts.map((script) => (
+                <ScriptCard 
+                  key={script.id}
+                  id={script.id}
+                  title={script.title || "Untitled Project"} 
+                  type={(script.project_type || "Feature Film").toUpperCase()} 
+                  pages={script.page_count || 1} 
+                  time={`${Math.floor((script.writing_time_seconds || 0) / 3600)}h ${Math.floor(((script.writing_time_seconds || 0) % 3600) / 60)}m`} 
+                  edited={script.updated_at ? new Date(script.updated_at).toLocaleDateString() : "Just now"} 
+                />
+              ))}
             </div>
           ) : (
             <div className="flex flex-col items-center justify-center h-full text-center opacity-50">
