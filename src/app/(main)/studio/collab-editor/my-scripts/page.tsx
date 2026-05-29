@@ -16,8 +16,23 @@ export default function MyScriptsPage() {
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const router = useRouter();
 
+  const [modalTab, setModalTab] = useState<'create' | 'join'>('create');
+  const [joinLink, setJoinLink] = useState('');
+
   const handleCreateScript = async (e: React.FormEvent) => {
     e.preventDefault();
+    if (modalTab === 'join') {
+      if (!joinLink.trim()) return;
+      try {
+        const url = new URL(joinLink);
+        // Assuming the link format is /studio/collab-editor/[id]
+        router.push(url.pathname + url.search);
+      } catch (err) {
+        setErrorMsg("Invalid URL. Please paste a valid Track Reframe share link.");
+      }
+      return;
+    }
+
     if (!newTitle.trim()) return;
     setIsCreating(true);
     setErrorMsg(null);
@@ -137,10 +152,14 @@ export default function MyScriptsPage() {
 
       {isModalOpen && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
-          <div className="bg-[#111118] border border-white/10 rounded-xl w-full max-w-md shadow-2xl overflow-hidden">
-            <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center">
-              <h2 className="text-lg font-bold text-white">Create New Script</h2>
+          <div className="bg-[#111118] border border-white/10 rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+            <div className="px-6 py-4 border-b border-white/10 flex justify-between items-center bg-[#0A0A0F]/50">
+              <h2 className="text-lg font-bold text-white">New Script</h2>
               <button onClick={() => setIsModalOpen(false)} className="text-gray-400 hover:text-white"><X className="w-5 h-5" /></button>
+            </div>
+            <div className="flex border-b border-white/5 px-6 pt-2 gap-6 bg-[#0A0A0F]/30 text-sm font-medium">
+              <button onClick={() => setModalTab('create')} className={`pb-3 border-b-2 ${modalTab === 'create' ? 'border-[#F5A623] text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>Create New</button>
+              <button onClick={() => setModalTab('join')} className={`pb-3 border-b-2 ${modalTab === 'join' ? 'border-[#F5A623] text-white' : 'border-transparent text-gray-500 hover:text-gray-300'}`}>Join via Link</button>
             </div>
             <form onSubmit={handleCreateScript} className="p-6">
               {errorMsg && (
@@ -149,24 +168,33 @@ export default function MyScriptsPage() {
                 </div>
               )}
               <div className="space-y-4">
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Script Title</label>
-                  <input required autoFocus value={newTitle} onChange={(e) => setNewTitle(e.target.value)} type="text" placeholder="e.g., The Last Sunset" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F5A623] transition-colors" />
-                </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Project Type</label>
-                  <select value={newType} onChange={(e) => setNewType(e.target.value)} className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F5A623] transition-colors appearance-none">
-                    <option value="Feature Film">Feature Film</option>
-                    <option value="Short Film">Short Film</option>
-                    <option value="TV Pilot">TV Pilot</option>
-                    <option value="Commercial">Commercial</option>
-                  </select>
-                </div>
+                {modalTab === 'create' ? (
+                  <>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Script Title</label>
+                      <input required autoFocus value={newTitle} onChange={(e) => setNewTitle(e.target.value)} type="text" placeholder="e.g., The Last Sunset" className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F5A623] transition-colors" />
+                    </div>
+                    <div>
+                      <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Project Type</label>
+                      <select value={newType} onChange={(e) => setNewType(e.target.value)} className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F5A623] transition-colors appearance-none">
+                        <option value="Feature Film">Feature Film</option>
+                        <option value="Short Film">Short Film</option>
+                        <option value="TV Pilot">TV Pilot</option>
+                        <option value="Commercial">Commercial</option>
+                      </select>
+                    </div>
+                  </>
+                ) : (
+                  <div>
+                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wider mb-2">Share Link</label>
+                    <input required autoFocus value={joinLink} onChange={(e) => setJoinLink(e.target.value)} type="text" placeholder="Paste link here..." className="w-full bg-[#0A0A0F] border border-white/10 rounded-lg px-4 py-2.5 text-white focus:outline-none focus:border-[#F5A623] transition-colors" />
+                  </div>
+                )}
               </div>
               <div className="mt-8 flex justify-end gap-3">
                 <button type="button" onClick={() => setIsModalOpen(false)} className="px-4 py-2 text-sm font-bold text-gray-400 hover:text-white transition-colors">Cancel</button>
-                <button type="submit" disabled={isCreating} className="bg-[#F5A623] text-black px-6 py-2 rounded-lg text-sm font-bold hover:bg-[#F5A623]/90 transition-colors flex items-center gap-2">
-                  {isCreating ? <><Loader2 className="w-4 h-4 animate-spin" /> Creating...</> : 'Create Script'}
+                <button type="submit" disabled={isCreating && modalTab === 'create'} className="bg-[#F5A623] text-black px-6 py-2 rounded-lg text-sm font-bold hover:bg-[#F5A623]/90 transition-colors flex items-center gap-2">
+                  {(isCreating && modalTab === 'create') ? <><Loader2 className="w-4 h-4 animate-spin" /> {modalTab === 'create' ? 'Creating...' : 'Joining...'}</> : (modalTab === 'create' ? 'Create Script' : 'Join Script')}
                 </button>
               </div>
             </form>
