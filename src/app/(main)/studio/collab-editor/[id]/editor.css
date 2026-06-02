@@ -4,8 +4,7 @@
   display: flex;
   justify-content: center;
   padding: 40px;
-  background-color: #0A0A0F;
-  min-height: 100vh;
+  background-color: #1A1A24;
 }
 
 .screenplay-editor .ProseMirror {
@@ -17,27 +16,70 @@
   min-height: 1056px; /* US Letter height approx at 96dpi */
   width: 816px; /* US Letter width */
   background: #FAFAF8;
-  padding-top: 96px; /* 1" top */
   padding-bottom: 96px; /* 1" bottom */
   box-shadow: 0 0 40px rgba(0,0,0,0.8);
+  
+  /* Visual Page Boundaries */
+  background-image: linear-gradient(
+    to bottom,
+    transparent 0px,
+    transparent 1054px,
+    #cbd5e1 1054px,
+    #94a3b8 1055px,
+    transparent 1056px
+  );
+  background-size: 100% 1056px;
+}
+/* Physical Page Break */
+.screenplay-editor .ProseMirror hr.page-break {
+  border: none;
+  display: block;
+  height: 40px;
+  margin: 40px -96px; /* Pulls it outside the padding to cover the whole width */
+  background-color: #1A1A24;
+  position: relative;
+  box-shadow: 
+    0 -10px 20px rgba(0,0,0,0.2), 
+    0 10px 20px rgba(0,0,0,0.2) inset;
+  cursor: pointer;
+}
+
+.screenplay-editor .ProseMirror hr.page-break::before {
+  content: "PAGE BREAK";
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  color: #4B5563;
+  font-size: 10px;
+  font-family: sans-serif;
+  letter-spacing: 4px;
+}
+
+.screenplay-editor .ProseMirror hr.page-break.ProseMirror-selectednode {
+  outline: 2px solid #6C63FF;
 }
 
 .screenplay-editor .ProseMirror p {
   margin: 0;
   white-space: pre-wrap;
+  /* Default to Action formatting if no specific class is applied */
+  margin-left: 144px;
+  margin-right: 96px;
+  margin-bottom: 1em;
 }
 
 /* Base margins for Action */
-.sp-action {
-  padding-left: 144px; /* 1.5" */
-  padding-right: 96px; /* 1" */
+.screenplay-editor .ProseMirror p.sp-action {
+  margin-left: 144px; /* 1.5" */
+  margin-right: 96px; /* 1" */
   margin-bottom: 1em !important;
 }
 
 /* Scene Heading */
-.sp-scene-heading {
-  padding-left: 144px;
-  padding-right: 96px;
+.screenplay-editor .ProseMirror p.sp-scene-heading {
+  margin-left: 144px;
+  margin-right: 96px;
   text-transform: uppercase;
   font-weight: bold;
   margin-top: 1.5em !important;
@@ -45,52 +87,54 @@
 }
 
 /* Character */
-.sp-character {
-  padding-left: 355px; /* ~3.7" from left */
-  padding-right: 96px;
+.screenplay-editor .ProseMirror p.sp-character {
+  margin-left: 355px; /* ~3.7" from left */
+  margin-right: 96px;
   text-transform: uppercase;
   margin-top: 1em !important;
+  margin-bottom: 0 !important;
 }
 
 /* Dialogue */
-.sp-dialogue {
-  padding-left: 240px; /* ~2.5" */
-  padding-right: 192px; /* ~2" */
+.screenplay-editor .ProseMirror p.sp-dialogue {
+  margin-left: 240px; /* ~2.5" */
+  margin-right: 192px; /* ~2" */
+  margin-bottom: 0 !important;
 }
 
 /* Parenthetical */
-.sp-parenthetical {
-  padding-left: 297px; /* ~3.1" */
-  padding-right: 230px; /* ~2.4" */
+.screenplay-editor .ProseMirror p.sp-parenthetical {
+  margin-left: 297px; /* ~3.1" */
+  margin-right: 230px; /* ~2.4" */
+  margin-bottom: 0 !important;
 }
 
 /* Transition */
-.sp-transition {
-  padding-left: 576px; /* ~6" */
-  padding-right: 96px;
+.screenplay-editor .ProseMirror p.sp-transition {
+  margin-left: 576px; /* ~6" */
+  margin-right: 96px;
   text-transform: uppercase;
   margin-top: 1em !important;
   margin-bottom: 1em !important;
 }
 
 /* Shot */
-.sp-shot {
-  padding-left: 144px;
-  padding-right: 96px;
+.screenplay-editor .ProseMirror p.sp-shot {
+  margin-left: 144px;
+  margin-right: 96px;
   text-transform: uppercase;
   margin-top: 1em !important;
   margin-bottom: 1em !important;
 }
 
 /* General */
-.sp-general {
-  padding-left: 144px;
-  padding-right: 96px;
+.screenplay-editor .ProseMirror p.sp-general {
+  margin-left: 144px;
+  margin-right: 96px;
   font-style: italic;
   color: #555;
   margin-bottom: 1em !important;
 }
-
 
 /* ProseMirror Placeholder */
 .ProseMirror p.is-editor-empty:first-child::before {
@@ -127,31 +171,52 @@
   white-space: nowrap;
 }
 
+@page {
+  margin: 0;
+  size: letter portrait;
+}
+
 @media print {
-  body * {
-    visibility: hidden;
+  /* Force all wrapper containers to be static and expand to full height without scrollbars */
+  html, body, div, main {
+    height: auto !important;
+    min-height: 0 !important;
+    overflow: visible !important;
+    position: static !important;
   }
-  .screenplay-editor-container, .screenplay-editor-container * {
-    visibility: visible;
+  
+  /* Hide custom scrollbars if any */
+  ::-webkit-scrollbar {
+    display: none !important;
   }
+
   .screenplay-editor-container {
-    position: absolute;
-    left: 0;
-    top: 0;
-    width: 100%;
-    margin: 0;
-    padding: 0;
-    background: white;
+    background: white !important;
+    padding: 0 !important;
+    width: 100% !important;
   }
+
   .screenplay-editor .ProseMirror {
     box-shadow: none !important;
-    width: 8.5in;
-    margin: 0;
-    padding-top: 1in;
-    padding-bottom: 1in;
-    min-height: auto;
+    width: 8.5in !important;
+    max-width: 8.5in !important;
+    margin: 0 auto !important;
+    padding-top: 1in !important;
+    padding-bottom: 1in !important;
+    min-height: auto !important;
+    background-image: none !important;
   }
-  .fixed, .bg-\[\#111118\], select, button, .shrink-0 {
+
+  .screenplay-editor .ProseMirror hr.page-break {
+    page-break-after: always !important;
+    break-after: page !important;
+    background: transparent !important;
+    box-shadow: none !important;
+    height: 0 !important;
+    margin: 0 !important;
+  }
+
+  .screenplay-editor .ProseMirror hr.page-break::before {
     display: none !important;
   }
 }

@@ -1,4 +1,4 @@
-import { Extension } from '@tiptap/core'
+import { Extension, Node, mergeAttributes } from '@tiptap/core'
 
 export type ElementType = 'scene-heading' | 'action' | 'character' | 'dialogue' | 'parenthetical' | 'transition' | 'shot' | 'general';
 
@@ -7,8 +7,40 @@ declare module '@tiptap/core' {
     screenplay: {
       setScreenplayElement: (type: ElementType) => ReturnType,
     }
+    pageBreak: {
+      setPageBreak: () => ReturnType,
+    }
   }
 }
+
+export const PageBreak = Node.create({
+  name: 'pageBreak',
+  group: 'block',
+  selectable: true,
+  draggable: true,
+
+  parseHTML() {
+    return [{ tag: 'hr[data-type="page-break"]' }]
+  },
+
+  renderHTML({ HTMLAttributes }) {
+    return ['hr', mergeAttributes(HTMLAttributes, { 'data-type': 'page-break', class: 'page-break' })]
+  },
+
+  addCommands() {
+    return {
+      setPageBreak: () => ({ chain }) => {
+        return chain().insertContent({ type: this.name }).run()
+      },
+    }
+  },
+
+  addKeyboardShortcuts() {
+    return {
+      'Mod-Enter': () => this.editor.commands.setPageBreak(),
+    }
+  },
+})
 
 export const ScreenplayExtension = Extension.create({
   name: 'screenplay',

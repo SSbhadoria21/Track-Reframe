@@ -58,14 +58,20 @@ async function MainLayoutContent({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="flex min-h-screen bg-background">
-      <Sidebar />
-      <div className="flex-1 flex flex-col min-w-0">
-        <TopBar />
-        <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden">
+    <div className="flex min-h-screen bg-background print:block print:bg-white print:min-h-0">
+      <div className="print:hidden">
+        <Sidebar />
+      </div>
+      <div className="flex-1 flex flex-col min-w-0 print:block print:overflow-visible">
+        <div className="print:hidden">
+          <TopBar />
+        </div>
+        <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden print:overflow-visible print:pb-0 print:block">
           {children}
         </main>
-        <BottomNav />
+        <div className="print:hidden">
+          <BottomNav />
+        </div>
       </div>
     </div>
   );

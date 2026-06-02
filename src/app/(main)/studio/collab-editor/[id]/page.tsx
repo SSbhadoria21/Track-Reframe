@@ -6,8 +6,8 @@ import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
 import { WebrtcProvider } from 'y-webrtc'
-import { ScreenplayExtension, ElementType } from '@/components/studio/collab-editor/ScreenplayExtension'
-import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Copy, Mail, MessageSquare, CheckCircle2, Send, Save } from 'lucide-react'
+import { ScreenplayExtension, ElementType, PageBreak } from '@/components/studio/collab-editor/ScreenplayExtension'
+import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Copy, Mail, MessageSquare, CheckCircle2, Send, Save, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useMemo, use, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
@@ -464,6 +464,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
         history: false, 
       }),
       ScreenplayExtension,
+      PageBreak,
       Collaboration.configure({
         document: ydoc,
       }),
@@ -506,8 +507,8 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-[#0A0A0F] flex flex-col text-white">
-      <div className="h-12 bg-[#111118] border-b border-white/10 flex items-center justify-between px-4 shrink-0">
+    <div className="fixed inset-0 z-50 bg-[#0A0A0F] flex flex-col text-white print:static print:h-auto print:bg-white print:text-black print:block">
+      <div className="h-12 bg-[#111118] border-b border-white/10 flex items-center justify-between px-4 shrink-0 print:hidden">
         <div className="flex items-center gap-4">
           <Link href="/studio/collab-editor/my-scripts" className="text-gray-400 hover:text-white transition-colors">
             <ArrowLeft className="w-5 h-5" />
@@ -540,6 +541,11 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
           <button className="px-2 py-1 text-gray-400 hover:text-white font-serif font-bold">B</button>
           <button className="px-2 py-1 text-gray-400 hover:text-white font-serif italic">I</button>
           <button className="px-2 py-1 text-gray-400 hover:text-white font-serif underline">U</button>
+
+          <div className="h-4 w-px bg-white/10 mx-2"></div>
+          <button onClick={() => editor?.commands.setPageBreak()} title="Insert Page Break (Ctrl+Enter)" className="px-2 py-1 text-gray-400 hover:text-white flex items-center gap-1 transition-colors group">
+             <FileText className="w-3.5 h-3.5" /> <span className="text-[10px] font-bold group-hover:text-white">PAGE BREAK</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-3">
@@ -573,8 +579,8 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
         </div>
       </div>
 
-      <div className="flex-1 flex overflow-hidden">
-        <div className="w-56 bg-[#111118] border-r border-white/5 flex flex-col shrink-0">
+      <div className="flex-1 flex overflow-hidden print:block print:overflow-visible print:h-auto">
+        <div className="w-56 bg-[#111118] border-r border-white/5 flex flex-col shrink-0 print:hidden">
           <div className="flex text-xs font-bold border-b border-white/5">
             <button onClick={() => setLeftTab('navigator')} className={`flex-1 py-3 ${leftTab === 'navigator' ? 'text-white border-b-2 border-[#F5A623]' : 'text-gray-500 hover:text-white'}`}>Navigator</button>
             <button onClick={() => setLeftTab('characters')} className={`flex-1 py-3 ${leftTab === 'characters' ? 'text-white border-b-2 border-[#F5A623]' : 'text-gray-500 hover:text-white'}`}>Characters</button>
@@ -603,13 +609,13 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto screenplay-editor-container bg-[#1A1A24]">
-          <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)]">
+        <div className="flex-1 overflow-y-auto screenplay-editor-container bg-[#1A1A24] print:block print:overflow-visible print:bg-white print:p-0">
+          <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)] print:shadow-none print:bg-white">
             <EditorContent editor={editor} />
           </div>
         </div>
 
-        <div className="w-64 bg-[#111118] border-l border-white/5 flex flex-col shrink-0">
+        <div className="w-64 bg-[#111118] border-l border-white/5 flex flex-col shrink-0 print:hidden">
           <div className="flex text-xs font-bold border-b border-white/5">
             <button onClick={() => setRightTab('stats')} className={`flex-1 py-3 ${rightTab === 'stats' ? 'text-white border-b-2 border-[#6C63FF]' : 'text-gray-500 hover:text-white'}`}>Stats</button>
             <button onClick={() => setRightTab('notes')} className={`flex-1 py-3 ${rightTab === 'notes' ? 'text-white border-b-2 border-[#6C63FF]' : 'text-gray-500 hover:text-white'}`}>Notes</button>
@@ -674,7 +680,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
         </div>
       </div>
 
-      <div className="h-8 bg-[#0A0A0F] border-t border-white/10 flex items-center justify-between px-4 text-[10px] text-gray-500 font-medium shrink-0">
+      <div className="h-8 bg-[#0A0A0F] border-t border-white/10 flex items-center justify-between px-4 text-[10px] text-gray-500 font-medium shrink-0 print:hidden">
         <div className="flex items-center gap-4">
           <span>Page {Math.max(1, Math.ceil(wordCount / 180))}</span>
           <span>{wordCount} Words</span>
