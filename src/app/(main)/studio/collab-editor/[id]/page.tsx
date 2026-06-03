@@ -2,6 +2,7 @@
 
 import { useEditor, EditorContent } from '@tiptap/react'
 import StarterKit from '@tiptap/starter-kit'
+import Underline from '@tiptap/extension-underline'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
@@ -11,6 +12,7 @@ import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Co
 import Link from 'next/link'
 import { useEffect, useState, useMemo, use, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
+import { getSession } from 'next-auth/react'
 import './editor.css'
 
 const colors = ['#F5A623', '#6C63FF', '#10B981', '#F43F5E', '#0EA5E9'];
@@ -70,7 +72,12 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
 
         // 2. Setup WebRTC Provider
         prov = new WebrtcProvider(roomName, doc, {
-          signaling: ['wss://signaling.yjs.dev', 'wss://y-webrtc-signaling-eu.herokuapp.com']
+          signaling: [
+            'ws://localhost:4444',
+            'wss://signaling.yjs.dev', 
+            'wss://y-webrtc-signaling-eu.herokuapp.com',
+            'wss://y-webrtc-signaling-us.herokuapp.com'
+          ]
         });
         
         yjsGlobalCache.set(roomName, { doc, prov });
@@ -148,6 +155,18 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   const [searchResults, setSearchResults] = useState<any[]>([]);
   const [shareStatusMsg, setShareStatusMsg] = useState('');
   
+  // Autocomplete State
+  const [autocomplete, setAutocomplete] = useState<{
+    show: boolean;
+    options: string[];
+    selectedIndex: number;
+    x: number;
+    y: number;
+    matchStart: number;
+    matchEnd: number;
+    type: 'scene' | 'time' | 'character';
+  } | null>(null);
+
   const lastActiveTime = useRef<number>(Date.now());
   const editorRef = useRef<any>(null);
   const supabase = useMemo(() => createBrowserClient(
@@ -227,12 +246,12 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
       const { data: notesData } = await supabase.from('script_notes').select('*, users(username, avatar_url)').eq('script_id', scriptId).order('created_at', { ascending: false });
       if (notesData) setNotes(notesData);
 
-      const { data: user } = await supabase.auth.getUser();
-      if (user.user) {
+      const session = await getSession();
+      if (session?.user) {
         // Automatically add as collaborator if visited via link and authenticated
         await supabase.from('script_collaborators').upsert({
           script_id: scriptId,
-          user_id: user.user.id,
+          user_id: (session.user as any).id,
           permission: 'edit',
           last_seen_at: new Date().toISOString()
         }, { onConflict: 'script_id, user_id' });
@@ -286,12 +305,12 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   const handleCreateNote = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newNote.trim()) return;
-    const { data: user } = await supabase.auth.getUser();
-    if (!user.user) return;
+    const session = await getSession();
+    if (!session?.user) return;
 
     const { data, error } = await supabase.from('script_notes').insert({
       script_id: scriptId,
-      user_id: user.user.id,
+      user_id: (session.user as any).id,
       content: newNote.trim()
     }).select('*, users(username, avatar_url)').single();
 
@@ -337,9 +356,10 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
       return;
     }
     const timer = setTimeout(async () => {
+      const cleanSearch = shareSearch.replace(/^@/, '');
       const { data } = await supabase.from('users')
-        .select('id, username, full_name, avatar_url')
-        .ilike('username', `%${shareSearch}%`)
+        .select('id, username, display_name, avatar_url')
+        .or(`username.ilike.%${cleanSearch}%,display_name.ilike.%${cleanSearch}%`)
         .limit(5);
       setSearchResults(data || []);
     }, 300);
@@ -352,8 +372,8 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
     setShareStatusMsg("Sending invite to email...");
     
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not logged in");
+      const session = await getSession();
+      if (!session?.user) throw new Error("Not logged in");
 
       // Generate a unique token
       const token = Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
@@ -361,7 +381,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
       const { error } = await supabase.from('script_invitations').insert({
         script_id: scriptId,
         invited_email: shareEmail,
-        invited_by: user.user.id,
+        invited_by: (session.user as any).id,
         permission: sharePermission,
         token: token,
         status: 'pending'
@@ -384,32 +404,25 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   const handleShareDM = async (targetUserId: string) => {
     setShareStatusMsg("Sending DM...");
     try {
-      const { data: user } = await supabase.auth.getUser();
-      if (!user.user) throw new Error("Not logged in");
+      const session = await getSession();
+      if (!session?.user) throw new Error("You must be logged in to send a DM.");
 
-      // 1. Get or create conversation
-      const user1 = user.user.id < targetUserId ? user.user.id : targetUserId;
-      const user2 = user.user.id < targetUserId ? targetUserId : user.user.id;
-      
-      let { data: conv } = await supabase.from('conversations')
-        .select('id').eq('user1_id', user1).eq('user2_id', user2).single();
-
-      if (!conv) {
-        const { data: newConv, error } = await supabase.from('conversations')
-          .insert({ user1_id: user1, user2_id: user2 }).select('id').single();
-        if (error) throw error;
-        conv = newConv;
-      }
-
-      // 2. Send message
       const link = `${window.location.origin}/studio/collab-editor/${scriptId}`;
       const msg = `Hey! I'm inviting you to collaborate on my script "${scriptTitle}". Join here: ${link}`;
       
-      await supabase.from('direct_messages').insert({
-        conversation_id: conv.id,
-        sender_id: user.user.id,
-        content: msg
+      const res = await fetch('/api/messages/send', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          targetUserId,
+          content: msg
+        })
       });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to send DM");
+      }
 
       setShareStatusMsg("Script shared via DM!");
       setShareSearch("");
@@ -440,8 +453,8 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
     const userName = names[Math.floor(Math.random() * names.length)];
     
     // In a real app, use the authenticated user's details
-    supabase.auth.getUser().then(({ data }) => {
-       const name = data.user?.user_metadata?.full_name || data.user?.email || userName;
+    getSession().then((session) => {
+       const name = session?.user?.name || session?.user?.email || userName;
        provider.awareness.setLocalStateField('user', { name, color: userColor })
     });
 
@@ -463,6 +476,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
       StarterKit.configure({
         history: false, 
       }),
+      Underline,
       ScreenplayExtension,
       PageBreak,
       Collaboration.configure({
@@ -482,14 +496,100 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
       }
       
       extractStats(editor);
+      checkAutocomplete(editor);
     },
     onSelectionUpdate: ({ editor }) => {
       const node = editor.state.selection.$from.node();
       if (node && node.attrs.screenplayType) {
         setActiveType(node.attrs.screenplayType);
       }
+      checkAutocomplete(editor);
     }
   });
+
+  const checkAutocomplete = (editor: any) => {
+    const { $from } = editor.state.selection;
+    const node = $from.node();
+    const type = node.attrs.screenplayType;
+    const text = node.textContent;
+    const pos = $from.pos;
+    const textUntilCursor = text.substring(0, pos - $from.start());
+    
+    try {
+      const coords = editor.view.coordsAtPos(pos);
+      
+      if (type === 'scene-heading') {
+        const t = textUntilCursor.toUpperCase();
+        
+        if (t.length > 0 && t.length <= 4 && !t.includes(' ') && !t.includes('-')) {
+          const prefixes = ['INT. ', 'EXT. ', 'INT./EXT. ', 'I/E. '];
+          const matches = prefixes.filter(p => p.startsWith(t) && p !== t);
+          if (matches.length > 0) {
+            setAutocomplete({ show: true, options: matches, selectedIndex: 0, x: coords.left, y: coords.top + 25, matchStart: $from.start(), matchEnd: pos, type: 'scene' });
+            return;
+          }
+        }
+        
+        const timeMatch = textUntilCursor.match(/( - | – )([A-Za-z]*)$/i);
+        if (timeMatch) {
+          const query = timeMatch[2].toUpperCase();
+          const times = ['DAY', 'NIGHT', 'EVENING', 'MORNING', 'CONTINUOUS', 'LATER', 'SAME'];
+          const matches = times.filter(time => time.startsWith(query) && time !== query);
+          if (matches.length > 0) {
+            setAutocomplete({ show: true, options: matches, selectedIndex: 0, x: coords.left, y: coords.top + 25, matchStart: pos - query.length, matchEnd: pos, type: 'time' });
+            return;
+          }
+        }
+      } else if (type === 'character') {
+        const query = textUntilCursor.toUpperCase();
+        if (query.length > 0) {
+          const allChars = new Set<string>();
+          editor.state.doc.descendants((n: any) => {
+             if (n.type.name === 'paragraph' && n.attrs.screenplayType === 'character') {
+                const c = n.textContent.trim().toUpperCase();
+                if (c && !c.includes('(')) allChars.add(c);
+             }
+          });
+          const matches = Array.from(allChars).filter(c => c.startsWith(query) && c !== query);
+          if (matches.length > 0) {
+            setAutocomplete({ show: true, options: matches, selectedIndex: 0, x: coords.left, y: coords.top + 25, matchStart: $from.start(), matchEnd: pos, type: 'character' });
+            return;
+          }
+        }
+      }
+    } catch(e) {}
+    
+    setAutocomplete(null);
+  };
+
+  const handleEditorKeyDown = (e: React.KeyboardEvent) => {
+    if (!autocomplete?.show) return;
+
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      e.stopPropagation();
+      setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex + 1) % prev.options.length } : null);
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      e.stopPropagation();
+      setAutocomplete(prev => prev ? { ...prev, selectedIndex: (prev.selectedIndex - 1 + prev.options.length) % prev.options.length } : null);
+    } else if (e.key === 'Enter' || e.key === 'Tab') {
+      e.preventDefault();
+      e.stopPropagation();
+      applySuggestion(autocomplete.options[autocomplete.selectedIndex]);
+    } else if (e.key === 'Escape') {
+      setAutocomplete(null);
+    }
+  };
+
+  const applySuggestion = (option: string) => {
+    if (!autocomplete || !editorRef.current) return;
+    editorRef.current.chain().focus()
+      .deleteRange({ from: autocomplete.matchStart, to: autocomplete.matchEnd })
+      .insertContent(option)
+      .run();
+    setAutocomplete(null);
+  };
 
   useEffect(() => {
     editorRef.current = editor;
@@ -538,9 +638,18 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
           
           <div className="h-4 w-px bg-white/10 mx-2"></div>
           
-          <button className="px-2 py-1 text-gray-400 hover:text-white font-serif font-bold">B</button>
-          <button className="px-2 py-1 text-gray-400 hover:text-white font-serif italic">I</button>
-          <button className="px-2 py-1 text-gray-400 hover:text-white font-serif underline">U</button>
+          <button 
+            onClick={() => editor?.chain().focus().toggleBold().run()}
+            className={`px-2 py-1 font-serif font-bold transition-colors ${editor?.isActive('bold') ? 'text-[#F5A623] bg-white/10 rounded' : 'text-gray-400 hover:text-white'}`}
+          >B</button>
+          <button 
+            onClick={() => editor?.chain().focus().toggleItalic().run()}
+            className={`px-2 py-1 font-serif italic transition-colors ${editor?.isActive('italic') ? 'text-[#F5A623] bg-white/10 rounded' : 'text-gray-400 hover:text-white'}`}
+          >I</button>
+          <button 
+            onClick={() => editor?.chain().focus().toggleUnderline().run()}
+            className={`px-2 py-1 font-serif underline transition-colors ${editor?.isActive('underline') ? 'text-[#F5A623] bg-white/10 rounded' : 'text-gray-400 hover:text-white'}`}
+          >U</button>
 
           <div className="h-4 w-px bg-white/10 mx-2"></div>
           <button onClick={() => editor?.commands.setPageBreak()} title="Insert Page Break (Ctrl+Enter)" className="px-2 py-1 text-gray-400 hover:text-white flex items-center gap-1 transition-colors group">
@@ -609,10 +718,35 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto screenplay-editor-container bg-[#1A1A24] print:block print:overflow-visible print:bg-white print:p-0">
-          <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)] print:shadow-none print:bg-white">
+        <div 
+          className="flex-1 overflow-y-auto screenplay-editor-container bg-[#1A1A24] print:block print:overflow-visible print:bg-white print:p-0 relative scrollbar-hide"
+          id="editor-scroll-container"
+          onKeyDownCapture={handleEditorKeyDown}
+        >
+          <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)] print:shadow-none print:bg-white flex justify-center py-12">
             <EditorContent editor={editor} />
           </div>
+          
+          {/* Autocomplete Popup */}
+          {autocomplete?.show && (
+             <div 
+               className="fixed z-50 bg-[#1A1A25] border border-white/10 rounded-lg shadow-2xl py-1 px-1 flex flex-col w-48"
+               style={{ top: autocomplete.y, left: autocomplete.x }}
+             >
+                {autocomplete.options.map((opt, i) => (
+                   <div 
+                      key={opt}
+                      onMouseDown={(e) => {
+                        e.preventDefault(); // prevent losing focus
+                        applySuggestion(opt);
+                      }}
+                      className={`px-3 py-1.5 text-xs font-bold font-mono cursor-pointer rounded ${i === autocomplete.selectedIndex ? 'bg-amber text-black' : 'text-text-secondary hover:text-white hover:bg-white/5'}`}
+                   >
+                      {opt}
+                   </div>
+                ))}
+             </div>
+          )}
         </div>
 
         <div className="w-64 bg-[#111118] border-l border-white/5 flex flex-col shrink-0 print:hidden">
@@ -788,7 +922,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
                               {user.avatar_url ? <img src={user.avatar_url} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-xs font-bold">{user.username.charAt(0).toUpperCase()}</div>}
                             </div>
                             <div>
-                              <div className="text-sm font-bold text-white">{user.full_name || user.username}</div>
+                              <div className="text-sm font-bold text-white">{user.display_name || user.username}</div>
                               <div className="text-xs text-gray-500">@{user.username}</div>
                             </div>
                           </div>

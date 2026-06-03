@@ -89,24 +89,74 @@ export const ScreenplayExtension = Extension.create({
         const node = $from.node();
         const type = node.attrs.screenplayType;
 
+        let handled = false;
+
         if (type === 'scene-heading' || type === 'shot' || type === 'transition') {
           this.editor.commands.splitBlock();
           this.editor.commands.setScreenplayElement('action');
-          return true;
+          handled = true;
         } else if (type === 'character') {
           this.editor.commands.splitBlock();
           this.editor.commands.setScreenplayElement('dialogue');
-          return true;
+          handled = true;
         } else if (type === 'dialogue') {
           this.editor.commands.splitBlock();
           this.editor.commands.setScreenplayElement('action');
-          return true;
+          handled = true;
         } else if (type === 'parenthetical') {
           this.editor.commands.splitBlock();
           this.editor.commands.setScreenplayElement('dialogue');
-          return true;
+          handled = true;
         }
-        return false;
+
+        // Auto-pagination check
+        setTimeout(() => {
+          try {
+            const currentPos = this.editor.state.selection.$from.pos;
+            
+            // Find the position of the last pageBreak before the cursor
+            let lastPageBreakPos = 0;
+            this.editor.state.doc.nodesBetween(0, currentPos, (node, pos) => {
+              if (node.type.name === 'pageBreak') {
+                lastPageBreakPos = pos;
+              }
+            });
+            
+            // Calculate height of text since last page break
+            const domRect = this.editor.view.dom.getBoundingClientRect();
+            let pageTopY = domRect.top + 96; // 96 is padding-top of .ProseMirror
+            
+            if (lastPageBreakPos > 0) {
+              // Get Y pos of paragraph immediately following the page break (leaf node size is 1)
+              const afterPbCoords = this.editor.view.coordsAtPos(lastPageBreakPos + 1);
+              pageTopY = afterPbCoords.top;
+            }
+            
+            const currentCoords = this.editor.view.coordsAtPos(currentPos);
+            const textHeight = currentCoords.top - pageTopY;
+            
+            // If text exceeds ~850px (near the 864px max text height of US Letter)
+            if (textHeight > 850) {
+              // Check if an old page break was pushed down nearby (within 500 characters)
+              let nextPbPos = -1;
+              this.editor.state.doc.nodesBetween(currentPos, Math.min(currentPos + 500, this.editor.state.doc.content.size), (node, pos) => {
+                if (node.type.name === 'pageBreak' && nextPbPos === -1) {
+                  nextPbPos = pos;
+                }
+              });
+
+              // Delete the old lingering page break to prevent duplicates
+              if (nextPbPos !== -1) {
+                this.editor.chain().deleteRange({ from: nextPbPos, to: nextPbPos + 1 }).run();
+              }
+
+              // Insert the new page break at the correct boundary
+              this.editor.chain().focus().insertContentAt(currentPos - 1, { type: 'pageBreak' }).run();
+            }
+          } catch(e) {}
+        }, 10);
+
+        return handled;
       },
       'Tab': () => {
         const { selection } = this.editor.state;

@@ -213,7 +213,11 @@ export default function ChatPage() {
                         : 'bg-[#1a1a24] text-white border border-white/5 rounded-bl-sm'
                     }`}
                   >
-                    {msg.content}
+                    {msg.content.split(/(https?:\/\/[^\s]+)/g).map((part: string, i: number) => 
+                      part.match(/(https?:\/\/[^\s]+)/g) 
+                        ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={`underline ${isMe ? 'hover:text-black/70' : 'hover:text-amber'} break-all transition-colors`}>{part}</a>
+                        : part
+                    )}
                   </motion.div>
                 </div>
               </div>

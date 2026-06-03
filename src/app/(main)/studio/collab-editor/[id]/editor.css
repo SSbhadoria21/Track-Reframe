@@ -16,26 +16,17 @@
   min-height: 1056px; /* US Letter height approx at 96dpi */
   width: 816px; /* US Letter width */
   background: #FAFAF8;
+  padding-top: 96px; /* 1" top */
   padding-bottom: 96px; /* 1" bottom */
   box-shadow: 0 0 40px rgba(0,0,0,0.8);
-  
-  /* Visual Page Boundaries */
-  background-image: linear-gradient(
-    to bottom,
-    transparent 0px,
-    transparent 1054px,
-    #cbd5e1 1054px,
-    #94a3b8 1055px,
-    transparent 1056px
-  );
-  background-size: 100% 1056px;
+  /* Visual Page Boundaries are now handled dynamically by hr.page-break */
 }
 /* Physical Page Break */
 .screenplay-editor .ProseMirror hr.page-break {
   border: none;
   display: block;
   height: 40px;
-  margin: 40px -96px; /* Pulls it outside the padding to cover the whole width */
+  margin: 96px 0; /* 1" margin top and bottom to simulate page gaps */
   background-color: #1A1A24;
   position: relative;
   box-shadow: 

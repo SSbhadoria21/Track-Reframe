@@ -78,7 +78,15 @@ export function MessageItem({ message, isOwn }: MessageItemProps) {
         );
 
       default:
-        return <p className="text-sm leading-relaxed whitespace-pre-wrap">{message.content}</p>;
+        return (
+          <p className="text-sm leading-relaxed whitespace-pre-wrap">
+            {message.content.split(/(https?:\/\/[^\s]+)/g).map((part: string, i: number) => 
+              part.match(/(https?:\/\/[^\s]+)/g) 
+                ? <a key={i} href={part} target="_blank" rel="noopener noreferrer" className={`underline ${isOwn ? 'hover:text-black/70' : 'hover:text-amber'} break-all transition-colors`}>{part}</a>
+                : part
+            )}
+          </p>
+        );
     }
   };
 
