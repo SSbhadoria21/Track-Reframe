@@ -13,6 +13,7 @@ import Link from 'next/link'
 import { useEffect, useState, useMemo, use, useRef } from 'react'
 import { createBrowserClient } from '@supabase/ssr'
 import { getSession } from 'next-auth/react'
+import TitlePage from '@/components/studio/collab-editor/TitlePage'
 import './editor.css'
 
 const colors = ['#F5A623', '#6C63FF', '#10B981', '#F43F5E', '#0EA5E9'];
@@ -723,6 +724,8 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
           id="editor-scroll-container"
           onKeyDownCapture={handleEditorKeyDown}
         >
+          <TitlePage ydoc={ydoc} />
+          
           <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)] print:shadow-none print:bg-white flex justify-center py-12">
             <EditorContent editor={editor} />
           </div>
