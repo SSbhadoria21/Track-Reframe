@@ -38,11 +38,11 @@ export default function TitlePage({ ydoc }: TitlePageProps) {
   };
 
   return (
-    <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)] print:shadow-none print:bg-white flex justify-center py-12 mb-12 print:mb-0" style={{ pageBreakAfter: 'always' }}>
-      <div className="w-[816px] min-h-[1056px] bg-white print:w-full print:min-h-0 text-black font-mono text-[12pt] relative p-[96px] mx-auto box-border flex flex-col justify-between">
+    <div className="screenplay-editor shadow-[0_0_50px_rgba(0,0,0,0.5)] print:shadow-none print:bg-white flex justify-center py-12 mb-12 print:mb-0 print:py-0" style={{ pageBreakAfter: 'always' }}>
+      <div className="w-[816px] min-h-[1056px] bg-white text-black font-mono text-[12pt] relative p-[96px] mx-auto box-border flex flex-col justify-between print:w-[8.5in] print:h-[8.5in] print:min-h-0 print:py-0 print:px-[1in]">
         
         {/* Top/Middle Section: Title & Author */}
-        <div className="flex-1 flex flex-col items-center justify-center -mt-32">
+        <div className="flex-1 flex flex-col items-center justify-center print:mt-0">
           <input
             type="text"
             value={title}

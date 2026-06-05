@@ -205,7 +205,10 @@ export function CreateCompetitionModal({ isOpen, onClose, onSuccess, initialData
                         <div className="grid grid-cols-2 gap-6">
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-amber uppercase tracking-widest">Prize Coins</label>
-                                <input type="number" value={formData.prize_coins} onChange={(e) => setFormData({...formData, prize_coins: parseInt(e.target.value)})} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white focus:border-amber/50 outline-none" />
+                                <input type="number" value={formData.prize_coins} onChange={(e) => {
+                                    const val = parseInt(e.target.value);
+                                    setFormData({...formData, prize_coins: isNaN(val) ? "" as any : val});
+                                }} className="w-full bg-black/40 border border-white/10 rounded-2xl p-4 text-white focus:border-amber/50 outline-none" />
                             </div>
                             <div className="space-y-2">
                                 <label className="text-[10px] font-bold text-amber uppercase tracking-widest">End Date</label>

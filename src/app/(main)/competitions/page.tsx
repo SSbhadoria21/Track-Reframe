@@ -133,14 +133,17 @@ export default function CompetitionsPage() {
   const fetchCompetitions = async (currentUser?: any) => {
     setLoading(true);
     const activeUser = currentUser || user;
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("competitions")
       .select(`
         *,
-        creator:users!competitions_creator_id_fkey(username, display_name, avatar_url),
         prize_badge:badges(name, icon_url, rarity)
       `)
       .order("created_at", { ascending: false });
+
+    if (error) {
+      console.error("Error fetching competitions:", error);
+    }
 
     if (data && activeUser) {
       // Filter logic:
@@ -150,8 +153,9 @@ export default function CompetitionsPage() {
       setCompetitions(processedData);
       
       const active = processedData.find((c: any) => {
+          if (!c.title || c.title.trim() === "") return false;
           if (c.status === "archived") return false;
-          if (c.creator_id === activeUser.id) {
+          if (activeUser?.email === 'trackreframe@gmail.com') {
               return ["upcoming", "round1_open", "round2", "finished"].includes(c.status);
           }
           return ["upcoming", "round1_open", "round2"].includes(c.status);
@@ -159,7 +163,10 @@ export default function CompetitionsPage() {
       setActiveComp(active || null);
     } else if (data) {
       setCompetitions(data);
-      const active = data.find((c: any) => ["upcoming", "round1_open", "round2"].includes(c.status));
+      const active = data.find((c: any) => {
+          if (!c.title || c.title.trim() === "") return false;
+          return ["upcoming", "round1_open", "round2"].includes(c.status);
+      });
       setActiveComp(active || null);
     }
 
@@ -256,7 +263,7 @@ export default function CompetitionsPage() {
       </section>
 
       {/* Admin Controls for Host - Securely visible only to creator */}
-      {activeComp?.creator_id === user?.id && activeComp && (
+      {user?.email === 'trackreframe@gmail.com' && activeComp && (
 
         <div className="max-w-7xl mx-auto px-6 -mt-10 relative z-50">
             <motion.div 
@@ -359,12 +366,14 @@ export default function CompetitionsPage() {
 
 
           
-          <button 
-            onClick={() => setShowCreateModal(true)}
-            className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-all"
-          >
-            <PlusIcon className="w-4 h-4" /> Create Challenge
-          </button>
+          {user?.email === 'trackreframe@gmail.com' && (
+            <button 
+              onClick={() => setShowCreateModal(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-all"
+            >
+              <PlusIcon className="w-4 h-4" /> Create Challenge
+            </button>
+          )}
         </div>
       </div>
 
@@ -405,7 +414,7 @@ export default function CompetitionsPage() {
                 </section>
 
                 <section>
-                    <Leaderboard compId={activeComp?.id} isAdmin={activeComp?.creator_id === user?.id} />
+                    <Leaderboard compId={activeComp?.id} isAdmin={user?.email === 'trackreframe@gmail.com'} />
                 </section>
 
               </div>
@@ -471,10 +480,10 @@ export default function CompetitionsPage() {
             <motion.div key="my" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
                 <h2 className="text-3xl font-display font-bold text-white">Challenges You Hosted</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                    {competitions.filter(c => c.creator_id === user?.id).map(comp => (
+                    {competitions.filter(() => user?.email === 'trackreframe@gmail.com').map(comp => (
                         <CompetitionCard key={comp.id} comp={comp} onSelect={() => { setActiveComp(comp); setActiveTab("current"); }} />
                     ))}
-                    {competitions.filter(c => c.creator_id === user?.id).length === 0 && (
+                    {competitions.filter(() => user?.email === 'trackreframe@gmail.com').length === 0 && (
                         <p className="text-text-muted py-20 text-center col-span-full">You haven't hosted any challenges yet.</p>
                     )}
                 </div>
@@ -615,15 +624,23 @@ function CountUp({ value }: { value: number }) {
     const [display, setDisplay] = useState(0);
 
     useEffect(() => {
+        if (!value || value <= 0) {
+            setDisplay(0);
+            return;
+        }
+
         let start = 0;
         const duration = 1000;
-        const stepTime = Math.abs(Math.floor(duration / value));
+        const stepTime = Math.max(10, Math.floor(duration / value));
         
         const timer = setInterval(() => {
             start += 1;
             setDisplay(start);
-            if (start === value) clearInterval(timer);
-        }, stepTime || 1);
+            if (start >= value) {
+                setDisplay(value);
+                clearInterval(timer);
+            }
+        }, stepTime);
 
         return () => clearInterval(timer);
     }, [value]);

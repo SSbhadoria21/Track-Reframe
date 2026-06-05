@@ -13,7 +13,6 @@ export async function GET(req: Request) {
     .from("competitions")
     .select(`
       *,
-      creator:users!competitions_creator_id_fkey(username, display_name, avatar_url),
       prize_badge:badges(name, icon_url, rarity)
     `)
     .order("created_at", { ascending: false });
@@ -36,8 +35,8 @@ export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   const user = session?.user as any;
 
-  if (!user) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user || user.email !== 'trackreframe@gmail.com') {
+    return NextResponse.json({ error: "Unauthorized: Only admins can create competitions" }, { status: 401 });
   }
 
   try {

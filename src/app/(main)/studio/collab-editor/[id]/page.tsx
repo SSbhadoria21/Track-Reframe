@@ -139,6 +139,9 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   const [wordCount, setWordCount] = useState(0);
   const [writingTime, setWritingTime] = useState(0);
   const [thinkingTime, setThinkingTime] = useState(0);
+  const [sessionWritingTime, setSessionWritingTime] = useState(0);
+  const [sessionThinkingTime, setSessionThinkingTime] = useState(0);
+  const [sessionId, setSessionId] = useState<string | null>(null);
   const [leftTab, setLeftTab] = useState<'navigator' | 'characters'>('navigator');
   const [rightTab, setRightTab] = useState<'stats' | 'notes'>('stats');
   
@@ -192,11 +195,19 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
         await supabase.from('scripts').update({
           title: scriptTitle,
           word_count: wordCount,
-          writing_time_seconds: writingTime,
-          thinking_time_seconds: thinkingTime,
           page_count: Math.max(1, Math.ceil(wordCount / 180)),
           updated_at: new Date().toISOString()
         }).eq('id', scriptId);
+
+        // Update personal session stats
+        if (sessionId) {
+           await supabase.from('writing_sessions').update({
+              writing_seconds: sessionWritingTime,
+              thinking_seconds: sessionThinkingTime,
+              words_written: wordCount,
+              ended_at: new Date().toISOString()
+           }).eq('id', sessionId);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -236,12 +247,10 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   // Fetch script metadata & notes on mount
   useEffect(() => {
     const fetchMetadata = async () => {
-      const { data, error } = await supabase.from('scripts').select('*').eq('id', scriptId).single();
+      const { data } = await supabase.from('scripts').select('*').eq('id', scriptId).single();
       if (data) {
         setScriptTitle(data.title || "Untitled Project");
         setProjectType(data.project_type || "Feature Film");
-        if (data.writing_time_seconds) setWritingTime(data.writing_time_seconds);
-        if (data.thinking_time_seconds) setThinkingTime(data.thinking_time_seconds);
       }
       
       const { data: notesData } = await supabase.from('script_notes').select('*, users(username, avatar_url)').eq('script_id', scriptId).order('created_at', { ascending: false });
@@ -249,10 +258,42 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
 
       const session = await getSession();
       if (session?.user) {
+        const userId = (session.user as any).id;
+        
+        // Fetch all past writing sessions for this user on this script to get total time
+        const { data: sessions } = await supabase.from('writing_sessions')
+          .select('writing_seconds, thinking_seconds')
+          .eq('script_id', scriptId)
+          .eq('user_id', userId);
+          
+        let pastWriting = 0;
+        let pastThinking = 0;
+        if (sessions) {
+           sessions.forEach(s => {
+             pastWriting += (s.writing_seconds || 0);
+             pastThinking += (s.thinking_seconds || 0);
+           });
+        }
+        
+        setWritingTime(pastWriting);
+        setThinkingTime(pastThinking);
+
+        // Create a new writing session for tracking this current visit
+        const { data: newSession } = await supabase.from('writing_sessions').insert({
+          script_id: scriptId,
+          user_id: userId,
+          writing_seconds: 0,
+          thinking_seconds: 0
+        }).select('id').single();
+        
+        if (newSession) {
+          setSessionId(newSession.id);
+        }
+
         // Automatically add as collaborator if visited via link and authenticated
         await supabase.from('script_collaborators').upsert({
           script_id: scriptId,
-          user_id: (session.user as any).id,
+          user_id: userId,
           permission: 'edit',
           last_seen_at: new Date().toISOString()
         }, { onConflict: 'script_id, user_id' });
@@ -264,16 +305,25 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
   // Periodic save for metadata (time, words)
   useEffect(() => {
     const saveInterval = setInterval(async () => {
+      // Update global script stats
       await supabase.from('scripts').update({
         word_count: wordCount,
-        writing_time_seconds: writingTime,
-        thinking_time_seconds: thinkingTime,
         page_count: Math.max(1, Math.ceil(wordCount / 180)),
         updated_at: new Date().toISOString()
       }).eq('id', scriptId);
+
+      // Update personal session stats
+      if (sessionId) {
+         await supabase.from('writing_sessions').update({
+            writing_seconds: sessionWritingTime,
+            thinking_seconds: sessionThinkingTime,
+            words_written: wordCount,
+            ended_at: new Date().toISOString()
+         }).eq('id', sessionId);
+      }
     }, 15000);
     return () => clearInterval(saveInterval);
-  }, [wordCount, writingTime, thinkingTime, scriptId, supabase]);
+  }, [wordCount, sessionWritingTime, sessionThinkingTime, scriptId, sessionId, supabase]);
 
   // Timer logic (3-second threshold)
   useEffect(() => {
@@ -281,8 +331,10 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
        const idleTime = Date.now() - lastActiveTime.current;
        if (idleTime <= 3000) {
          setWritingTime(prev => prev + 1);
+         setSessionWritingTime(prev => prev + 1);
        } else {
          setThinkingTime(prev => prev + 1);
+         setSessionThinkingTime(prev => prev + 1);
        }
     }, 1000);
     return () => clearInterval(interval);
@@ -391,6 +443,22 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
       if (error) {
         if (error.code === '23505') throw new Error("This email is already invited.");
         throw error;
+      }
+
+      // Dispatch the email via our API route
+      const emailRes = await fetch('/api/scripts/invite', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email: shareEmail,
+          inviterName: session.user.name || session.user.email,
+          scriptTitle: scriptTitle,
+          link: `${window.location.origin}/studio/collab-editor/${scriptId}?invite=${token}`
+        })
+      });
+
+      if (!emailRes.ok) {
+        throw new Error("Invitation saved, but failed to send email.");
       }
 
       setShareStatusMsg("Invite sent successfully!");

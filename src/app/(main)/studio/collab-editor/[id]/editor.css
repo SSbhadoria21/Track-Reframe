@@ -55,23 +55,26 @@
 .screenplay-editor .ProseMirror p {
   margin: 0;
   white-space: pre-wrap;
+  word-wrap: break-word;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   /* Default to Action formatting if no specific class is applied */
-  margin-left: 144px;
-  margin-right: 96px;
+  margin-left: 1.5in;
+  margin-right: 1in;
   margin-bottom: 1em;
 }
 
 /* Base margins for Action */
 .screenplay-editor .ProseMirror p.sp-action {
-  margin-left: 144px; /* 1.5" */
-  margin-right: 96px; /* 1" */
+  margin-left: 1.5in;
+  margin-right: 1in;
   margin-bottom: 1em !important;
 }
 
 /* Scene Heading */
 .screenplay-editor .ProseMirror p.sp-scene-heading {
-  margin-left: 144px;
-  margin-right: 96px;
+  margin-left: 1.5in;
+  margin-right: 1in;
   text-transform: uppercase;
   font-weight: bold;
   margin-top: 1.5em !important;
@@ -80,8 +83,8 @@
 
 /* Character */
 .screenplay-editor .ProseMirror p.sp-character {
-  margin-left: 355px; /* ~3.7" from left */
-  margin-right: 96px;
+  margin-left: 3.7in;
+  margin-right: 1in;
   text-transform: uppercase;
   margin-top: 1em !important;
   margin-bottom: 0 !important;
@@ -89,22 +92,22 @@
 
 /* Dialogue */
 .screenplay-editor .ProseMirror p.sp-dialogue {
-  margin-left: 240px; /* ~2.5" */
-  margin-right: 192px; /* ~2" */
+  margin-left: 2.5in;
+  margin-right: 2in;
   margin-bottom: 0 !important;
 }
 
 /* Parenthetical */
 .screenplay-editor .ProseMirror p.sp-parenthetical {
-  margin-left: 297px; /* ~3.1" */
-  margin-right: 230px; /* ~2.4" */
+  margin-left: 3.1in;
+  margin-right: 2.4in;
   margin-bottom: 0 !important;
 }
 
 /* Transition */
 .screenplay-editor .ProseMirror p.sp-transition {
-  margin-left: 576px; /* ~6" */
-  margin-right: 96px;
+  margin-left: 6.0in;
+  margin-right: 1in;
   text-transform: uppercase;
   margin-top: 1em !important;
   margin-bottom: 1em !important;
@@ -112,8 +115,8 @@
 
 /* Shot */
 .screenplay-editor .ProseMirror p.sp-shot {
-  margin-left: 144px;
-  margin-right: 96px;
+  margin-left: 1.5in;
+  margin-right: 1in;
   text-transform: uppercase;
   margin-top: 1em !important;
   margin-bottom: 1em !important;
@@ -121,8 +124,8 @@
 
 /* General */
 .screenplay-editor .ProseMirror p.sp-general {
-  margin-left: 144px;
-  margin-right: 96px;
+  margin-left: 1.5in;
+  margin-right: 1in;
   font-style: italic;
   color: #555;
   margin-bottom: 1em !important;
@@ -164,13 +167,13 @@
 }
 
 @page {
-  margin: 0;
+  margin: 1in 0;
   size: letter portrait;
 }
 
 @media print {
-  /* Force all wrapper containers to be static and expand to full height without scrollbars */
-  html, body, div, main {
+  /* Force specific wrapper containers to be static and expand to full height without scrollbars */
+  html, body, .fixed, .screenplay-editor-container, main {
     height: auto !important;
     min-height: 0 !important;
     overflow: visible !important;
@@ -190,22 +193,16 @@
 
   .screenplay-editor .ProseMirror {
     box-shadow: none !important;
-    width: 8.5in !important;
-    max-width: 8.5in !important;
-    margin: 0 auto !important;
-    padding-top: 1in !important;
-    padding-bottom: 1in !important;
+    width: 100% !important;
+    max-width: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
     min-height: auto !important;
-    background-image: none !important;
+    background: transparent !important;
   }
 
   .screenplay-editor .ProseMirror hr.page-break {
-    page-break-after: always !important;
-    break-after: page !important;
-    background: transparent !important;
-    box-shadow: none !important;
-    height: 0 !important;
-    margin: 0 !important;
+    display: none !important;
   }
 
   .screenplay-editor .ProseMirror hr.page-break::before {

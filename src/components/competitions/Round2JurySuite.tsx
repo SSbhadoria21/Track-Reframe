@@ -36,11 +36,27 @@ export function Round2JurySuite({ comp, user, onUpdate }: Round2JurySuiteProps) 
   const fetchFinalists = async () => {
     const { data } = await supabase
       .from("competition_submissions")
-      .select("*, user:users(display_name, avatar_url, username)")
+      .select("*")
       .eq("competition_id", comp.id)
       .order("avg_rating", { ascending: false });
     
-    if (data) setFinalists(data);
+    if (data && data.length > 0) {
+        // Fallback user fetch to bypass missing foreign key constraint
+        const userIds = data.map((d: any) => d.user_id).filter(Boolean);
+        if (userIds.length > 0) {
+            const { data: usersData } = await supabase
+                .from("users")
+                .select("id, username, display_name, avatar_url")
+                .in("id", userIds);
+                
+            if (usersData) {
+                data.forEach((sub: any) => {
+                    sub.user = usersData.find((u: any) => u.id === sub.user_id);
+                });
+            }
+        }
+        setFinalists(data);
+    }
   };
 
   useEffect(() => {

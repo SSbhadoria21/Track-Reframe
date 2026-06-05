@@ -330,7 +330,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
       )}
 
       {/* COMPETITION APPLY BUTTON */}
-      {post.competition_id && !post.is_competition_entry && (
+      {post.competition_id && !post.is_competition_entry && post.content?.includes("🎬 NEW COMPETITION") && (
         <div className="mt-2">
           <Link 
             href={`/competitions?id=${post.competition_id}`}

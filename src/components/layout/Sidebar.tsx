@@ -25,12 +25,14 @@ export function Sidebar() {
   const { data: session } = useSession();
   const [isLoggingOut, setIsLoggingOut] = useState(false);
   const [userProfile, setUserProfile] = useState<{ displayName: string; username: string; initials: string; avatarUrl?: string | null } | null>(null);
-  const [showFollowers, setShowFollowers] = useState(false);
+  const [networkModalTab, setNetworkModalTab] = useState<'followers' | 'following' | null>(null);
+  const [networkList, setNetworkList] = useState<any[]>([]);
+  const [loadingNetwork, setLoadingNetwork] = useState(false);
   const [showSaved, setShowSaved] = useState(false);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
 
   // Real stats from DB — initialized to 0
-  const [stats, setStats] = useState({ posts: 0, followers: 0, saved: 0, coins: 0, awards: 0 });
+  const [stats, setStats] = useState({ posts: 0, followers: 0, following: 0, saved: 0, coins: 0, awards: 0 });
 
   // Fetch real stats from Supabase
   useEffect(() => {
@@ -44,6 +46,7 @@ export function Sidebar() {
           setStats({
             posts: data.stats.posts || 0,
             followers: data.stats.followers || 0,
+            following: data.stats.following || 0,
             saved: data.stats.saved || 0,
             coins: data.stats.coins || 0,
             awards: data.stats.awards || 0,
@@ -74,6 +77,7 @@ export function Sidebar() {
           setStats((prev) => ({ 
             ...prev, 
             followers: data.stats.followers || 0,
+            following: data.stats.following || 0,
           }));
         }
       } catch { /* ignore */ }
@@ -141,7 +145,7 @@ export function Sidebar() {
             const res = await fetch("/api/user/stats", { cache: "no-store" });
             if (res.ok && isMounted) {
               const data = await res.json();
-              setStats((prev) => ({ ...prev, followers: data.stats.followers || 0 }));
+              setStats((prev) => ({ ...prev, followers: data.stats.followers || 0, following: data.stats.following || 0 }));
             }
           }
         )
@@ -215,6 +219,86 @@ export function Sidebar() {
     window.addEventListener('updateAvatar', handleAvatarUpdate);
     return () => window.removeEventListener('updateAvatar', handleAvatarUpdate);
   }, [session]);
+
+  useEffect(() => {
+    if (!networkModalTab || !session?.user?.email) return;
+    
+    let isMounted = true;
+    const fetchNetwork = async () => {
+      setLoadingNetwork(true);
+      const supabase = createClient();
+      
+      const email = session?.user?.email;
+      if (!email) {
+          if (isMounted) setLoadingNetwork(false);
+          return;
+      }
+      const { data: me } = await supabase.from('users').select('id').eq('email', email).single();
+      if (!me || !isMounted) return;
+
+      if (networkModalTab === 'followers') {
+        const { data } = await supabase
+          .from('follows')
+          .select('user:users!follows_follower_id_fkey(id, username, display_name, avatar_url)')
+          .eq('following_id', me.id);
+          
+        if (data && isMounted) {
+          const userIds = data.map((d: any) => d.user?.id).filter(Boolean);
+          const { data: myFollows } = await supabase
+            .from('follows')
+            .select('following_id')
+            .eq('follower_id', me.id)
+            .in('following_id', userIds);
+            
+          const myFollowSet = new Set(myFollows?.map((f: any) => f.following_id) || []);
+          
+          setNetworkList(data.map((d: any) => ({
+            ...d.user,
+            isFollowing: myFollowSet.has(d.user.id)
+          })));
+        } else if (isMounted) {
+          setNetworkList([]);
+        }
+      } else {
+        const { data } = await supabase
+          .from('follows')
+          .select('user:users!follows_following_id_fkey(id, username, display_name, avatar_url)')
+          .eq('follower_id', me.id);
+          
+        if (data && isMounted) {
+          setNetworkList(data.map((d: any) => ({
+            ...d.user,
+            isFollowing: true
+          })));
+        } else if (isMounted) {
+          setNetworkList([]);
+        }
+      }
+      if (isMounted) setLoadingNetwork(false);
+    };
+
+    fetchNetwork();
+    return () => { isMounted = false; };
+  }, [networkModalTab, session]);
+
+  const handleToggleFollow = async (targetId: string, currentStatus: boolean) => {
+    try {
+      setNetworkList(prev => prev.map(u => u.id === targetId ? { ...u, isFollowing: !currentStatus } : u));
+      const res = await fetch("/api/user/follow", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ target_user_id: targetId }),
+      });
+      if (!res.ok) {
+         setNetworkList(prev => prev.map(u => u.id === targetId ? { ...u, isFollowing: currentStatus } : u));
+      } else {
+         const data = await res.json();
+         setStats(prev => ({ ...prev, followers: data.follower_count || prev.followers }));
+      }
+    } catch {
+       setNetworkList(prev => prev.map(u => u.id === targetId ? { ...u, isFollowing: currentStatus } : u));
+    }
+  };
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -307,7 +391,7 @@ export function Sidebar() {
           </div>
           <div className="w-px h-6 bg-border-default"></div>
           <div 
-            onClick={() => setShowFollowers(true)}
+            onClick={() => setNetworkModalTab('followers')}
             className="flex flex-col items-center flex-1 cursor-pointer hover:bg-elevated/50 rounded transition-colors py-1"
           >
             <span className="text-[10px] text-text-muted font-medium uppercase tracking-wider">Followers</span>
@@ -315,10 +399,11 @@ export function Sidebar() {
           </div>
           <div className="w-px h-6 bg-border-default"></div>
           <div 
-            className="flex flex-col items-center flex-1 transition-colors py-1"
+            onClick={() => setNetworkModalTab('following')}
+            className="flex flex-col items-center flex-1 cursor-pointer hover:bg-elevated/50 rounded transition-colors py-1"
           >
-            <span className="text-[10px] text-text-muted font-medium uppercase tracking-wider">Awards</span>
-            <span className="text-sm font-bold text-amber">{stats.awards}</span>
+            <span className="text-[10px] text-text-muted font-medium uppercase tracking-wider">Following</span>
+            <span className="text-sm font-bold text-text-primary">{stats.following}</span>
           </div>
         </div>
 
@@ -346,27 +431,86 @@ export function Sidebar() {
         </button>
       </div>
 
-      {/* Followers Modal */}
+      {/* Network Modal */}
       <AnimatePresence>
-        {showFollowers && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center bg-background/60 backdrop-blur-sm p-4">
+        {networkModalTab && (
+          <div className="fixed inset-0 z-[100] flex items-center justify-center bg-background/60 backdrop-blur-sm p-4">
             <motion.div 
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-sm bg-elevated border border-border-default rounded-2xl shadow-2xl overflow-hidden flex flex-col"
+              className="w-full max-w-sm bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden flex flex-col"
             >
-              <div className="p-4 border-b border-border-default flex justify-between items-center">
-                <h2 className="font-display font-bold text-lg">Your Followers</h2>
-                <button onClick={() => setShowFollowers(false)} className="text-text-muted hover:text-white transition-colors">
+              <div className="p-4 border-b border-border-default flex justify-between items-center bg-elevated/30">
+                <div className="flex items-center gap-4">
+                  <button 
+                    onClick={() => setNetworkModalTab('followers')}
+                    className={`font-display font-bold text-lg transition-colors ${networkModalTab === 'followers' ? 'text-white' : 'text-text-muted hover:text-white/80'}`}
+                  >
+                    Followers
+                  </button>
+                  <button 
+                    onClick={() => setNetworkModalTab('following')}
+                    className={`font-display font-bold text-lg transition-colors ${networkModalTab === 'following' ? 'text-white' : 'text-text-muted hover:text-white/80'}`}
+                  >
+                    Following
+                  </button>
+                </div>
+                <button onClick={() => setNetworkModalTab(null)} className="p-1 rounded-md text-text-muted hover:text-white hover:bg-white/5 transition-all">
                   <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
                 </button>
               </div>
               <div className="p-4 flex flex-col gap-4 max-h-[60vh] overflow-y-auto scrollbar-hide">
-                {stats.followers === 0 ? (
-                  <p className="text-sm text-text-muted text-center py-4">No followers yet. Share your work to grow your audience!</p>
+                {loadingNetwork ? (
+                  <div className="flex justify-center py-10">
+                    <div className="w-6 h-6 border-2 border-amber/20 border-t-amber rounded-full animate-spin" />
+                  </div>
+                ) : networkList.length === 0 ? (
+                  <p className="text-sm text-text-muted text-center py-8">
+                    {networkModalTab === 'followers' ? "No followers yet. Share your work to grow your audience!" : "You aren't following anyone yet."}
+                  </p>
                 ) : (
-                  <p className="text-sm text-text-muted text-center py-4">You have {stats.followers} follower(s).</p>
+                  <div className="flex flex-col gap-3">
+                    {networkList.map((user) => (
+                      <div key={user.id} className="flex items-center justify-between group">
+                        <Link href={`/creator/${user.username}`} onClick={() => setNetworkModalTab(null)} className="flex items-center gap-3 flex-1 min-w-0 pr-3 hover:opacity-80 transition-opacity">
+                          <div className="w-10 h-10 rounded-full bg-indigo/20 border border-indigo/30 flex items-center justify-center font-bold text-indigo shrink-0 overflow-hidden">
+                            {user.avatar_url ? (
+                              <img src={user.avatar_url} alt="" className="w-full h-full object-cover" />
+                            ) : (
+                              (user.display_name || user.username || "U").substring(0, 2).toUpperCase()
+                            )}
+                          </div>
+                          <div className="flex flex-col min-w-0 flex-1">
+                            <span className="text-sm font-bold text-white truncate">{user.display_name || user.username}</span>
+                            <span className="text-[10px] text-text-muted truncate">@{user.username}</span>
+                          </div>
+                        </Link>
+                        
+                        <div className="flex items-center gap-2 shrink-0">
+                          <Link 
+                            href={`/messages?user=${user.id}`}
+                            onClick={() => setNetworkModalTab(null)}
+                            className="p-2 rounded-full bg-white/5 hover:bg-white/10 text-white transition-all"
+                            title="Message"
+                          >
+                            <ChatIcon className="w-4 h-4" />
+                          </Link>
+                          
+                          <button 
+                            onClick={() => handleToggleFollow(user.id, user.isFollowing)}
+                            className={`px-3 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-wider transition-all border ${
+                              user.isFollowing 
+                                ? "bg-transparent border-white/20 text-text-muted hover:border-white/40 hover:text-white" 
+                                : "bg-amber border-amber text-black hover:bg-amber-hover hover:scale-105 active:scale-95 shadow-md shadow-amber/20"
+                            }`}
+                          >
+                            {user.isFollowing ? "Following" : "Follow"}
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </div>
             </motion.div>

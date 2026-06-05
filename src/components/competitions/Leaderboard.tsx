@@ -28,10 +28,7 @@ export function Leaderboard({ compId, isAdmin }: LeaderboardProps) {
   const fetchSubmissions = async () => {
     let query = supabase
       .from("competition_submissions")
-      .select(`
-        *,
-        user:users(id, username, display_name, avatar_url)
-      `)
+      .select(`*`)
       .eq("competition_id", compId);
 
     if (sortBy === "rating") query = query.order("avg_rating", { ascending: false });
@@ -39,6 +36,24 @@ export function Leaderboard({ compId, isAdmin }: LeaderboardProps) {
     if (sortBy === "date") query = query.order("created_at", { ascending: false });
 
     const { data } = await query;
+    
+    if (data && data.length > 0) {
+        // Fallback user fetch to bypass missing foreign key constraint
+        const userIds = data.map((d: any) => d.user_id).filter(Boolean);
+        if (userIds.length > 0) {
+            const { data: usersData } = await supabase
+                .from("users")
+                .select("id, username, display_name, avatar_url")
+                .in("id", userIds);
+                
+            if (usersData) {
+                data.forEach((sub: any) => {
+                    sub.user = usersData.find((u: any) => u.id === sub.user_id);
+                });
+            }
+        }
+    }
+    
     setSubmissions(data || []);
     setLoading(false);
   };
