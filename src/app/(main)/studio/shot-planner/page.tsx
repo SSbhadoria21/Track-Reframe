@@ -4,6 +4,7 @@ import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { CameraIcon } from "@/components/icons";
 import StoryboardFrame from "./StoryboardFrame";
+import toast from "react-hot-toast";
 
 /* ─── Types ─── */
 interface Shot {
@@ -274,6 +275,13 @@ function OverviewPanel({ overview }: { overview: SceneOverview }) {
 
 /* ─── Main Page ─── */
 export default function ShotPlannerPage() {
+  const [activeTab, setActiveTab] = useState<"manual" | "script">("manual");
+  const [isDragOver, setIsDragOver] = useState(false);
+  const [uploadedScenes, setUploadedScenes] = useState<{heading: string, body: string}[]>([]);
+  const [selectedSceneIndex, setSelectedSceneIndex] = useState<number | null>(null);
+  const [scenePlans, setScenePlans] = useState<Record<number, ShotPlan>>({});
+  const [sceneStoryboards, setSceneStoryboards] = useState<Record<number, Record<number, StoryboardImage>>>({});
+
   const [scene, setScene] = useState("");
   const [genre, setGenre] = useState<string | null>(null);
   const [mood, setMood] = useState<string | null>(null);
@@ -286,11 +294,124 @@ export default function ShotPlannerPage() {
   const [expandAll, setExpandAll] = useState(false);
   const [storyboards, setStoryboards] = useState<Record<number, StoryboardImage>>({});
   const resultRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  /* ─── PDF Parser & Upload ─── */
+  const loadPdfJs = () => {
+    return new Promise<any>((resolve) => {
+      if ((window as any).pdfjsLib) return resolve((window as any).pdfjsLib);
+      const script = document.createElement("script");
+      script.src = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js";
+      script.onload = () => {
+        const pdfjs = (window as any).pdfjsLib;
+        pdfjs.GlobalWorkerOptions.workerSrc = "https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js";
+        resolve(pdfjs);
+      };
+      document.head.appendChild(script);
+    });
+  };
+
+  const extractTextFromPdf = async (file: File) => {
+    const pdfjs = await loadPdfJs();
+    const arrayBuffer = await file.arrayBuffer();
+    const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+    let text = "";
+    for (let i = 1; i <= pdf.numPages; i++) {
+      const page = await pdf.getPage(i);
+      const content = await page.getTextContent();
+      const pageText = content.items.map((item: any) => item.str).join(" ");
+      text += pageText + "\n";
+    }
+    return text;
+  };
+
+  function parseScenes(text: string) {
+    const lines = text.split("\n");
+    const scenes: { heading: string; body: string }[] = [];
+    let currentHeading = "";
+    let currentBody: string[] = [];
+    
+    for (const line of lines) {
+      const t = line.trim();
+      if (/^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(t)) {
+        if (currentHeading || currentBody.length > 0) {
+          scenes.push({ heading: currentHeading || "Scene", body: currentBody.join("\n").trim() });
+        }
+        currentHeading = t;
+        currentBody = [];
+      } else {
+        currentBody.push(line);
+      }
+    }
+    if (currentHeading || currentBody.length > 0) {
+      scenes.push({ heading: currentHeading || "Scene", body: currentBody.join("\n").trim() });
+    }
+    return scenes.filter(s => s.body.length > 10);
+  }
+
+  const handleFile = async (file: File) => {
+    if (!file) return;
+    const ext = file.name.split(".").pop()?.toLowerCase();
+    
+    let text = "";
+    if (ext === "txt" || ext === "fdx") {
+      text = await file.text();
+    } else if (ext === "pdf") {
+      try {
+        toast.loading("Extracting script...", { id: "pdf-load" });
+        text = await extractTextFromPdf(file);
+        toast.success("Script extracted successfully!", { id: "pdf-load" });
+      } catch (err) {
+        toast.error("Failed to parse PDF script", { id: "pdf-load" });
+        return;
+      }
+    } else {
+      toast.error("Unsupported file format. Please upload .txt or .pdf");
+      return;
+    }
+
+    const parsed = parseScenes(text);
+    if (parsed.length === 0) {
+      toast.error("Could not find any scenes. Ensure the script uses standard INT./EXT. headings.");
+      return;
+    }
+    
+    setUploadedScenes(parsed);
+    setSelectedSceneIndex(null);
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") setIsDragOver(true);
+    else if (e.type === "dragleave") setIsDragOver(false);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragOver(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      handleFile(e.dataTransfer.files[0]);
+    }
+  };
 
   /* ─── Storyboard generation for a single shot ─── */
-  const generateStoryboard = async (shot: Shot, location?: string) => {
+  const generateStoryboard = async (shot: Shot, loc?: string, sceneIndex?: number) => {
     const key = shot.shotNumber;
-    setStoryboards((prev) => ({ ...prev, [key]: { data: "", mimeType: "", loading: true, error: null } }));
+    
+    const updateStoryboardState = (updater: (prev: StoryboardImage | undefined) => StoryboardImage) => {
+      if (sceneIndex !== undefined) {
+        setSceneStoryboards(prev => ({ 
+          ...prev, 
+          [sceneIndex]: { ...(prev[sceneIndex] || {}), [key]: updater((prev[sceneIndex] || {})[key]) } 
+        }));
+      } else {
+        setStoryboards((prev) => ({ ...prev, [key]: updater(prev[key]) }));
+      }
+    };
+
+    updateStoryboardState(() => ({ data: "", mimeType: "", loading: true, error: null }));
     try {
       const res = await fetch("/api/ai/shot-storyboard", {
         method: "POST",
@@ -300,18 +421,18 @@ export default function ShotPlannerPage() {
           shotType: shot.shotType,
           cameraAngle: shot.cameraAngle,
           lightingMood: shot.lightingMood,
-          location,
+          location: loc,
         }),
       });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: "Failed" }));
-        setStoryboards((prev) => ({ ...prev, [key]: { data: "", mimeType: "", loading: false, error: err.error || "Generation failed" } }));
+        updateStoryboardState(() => ({ data: "", mimeType: "", loading: false, error: err.error || "Generation failed" }));
         return;
       }
       const data = await res.json();
-      setStoryboards((prev) => ({ ...prev, [key]: { data: data.image, mimeType: data.mimeType, loading: false, error: null } }));
+      updateStoryboardState(() => ({ data: data.image, mimeType: data.mimeType, loading: false, error: null }));
     } catch {
-      setStoryboards((prev) => ({ ...prev, [key]: { data: "", mimeType: "", loading: false, error: "Connection failed" } }));
+      updateStoryboardState(() => ({ data: "", mimeType: "", loading: false, error: "Connection failed" }));
     }
   };
 
@@ -325,19 +446,22 @@ export default function ShotPlannerPage() {
     }
   };
 
-  const handleGenerate = async () => {
-    if (!scene.trim() || loading) return;
+  const handleGenerate = async (sceneIndex?: number) => {
+    const activeSceneText = sceneIndex !== undefined ? uploadedScenes[sceneIndex].body : scene;
+    const activeLocText = sceneIndex !== undefined ? uploadedScenes[sceneIndex].heading : location;
+
+    if (!activeSceneText.trim() || loading) return;
     setLoading(true);
     setError(null);
-    setPlan(null);
+    if (sceneIndex === undefined) setPlan(null);
 
     try {
       const res = await fetch("/api/ai/shot-planner", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          sceneDescription: scene,
-          genre, mood, location: location || undefined,
+          sceneDescription: activeSceneText,
+          genre, mood, location: activeLocText || undefined,
           timeOfDay, shotCount,
         }),
       });
@@ -349,8 +473,14 @@ export default function ShotPlannerPage() {
         setError(err.error || "Failed to generate shot plan");
       } else {
         const data = await res.json();
-        setPlan(data);
-        setStoryboards({});
+        if (sceneIndex !== undefined) {
+          setScenePlans(prev => ({ ...prev, [sceneIndex]: data }));
+          setSceneStoryboards(prev => ({ ...prev, [sceneIndex]: {} }));
+          setSelectedSceneIndex(sceneIndex);
+        } else {
+          setPlan(data);
+          setStoryboards({});
+        }
         setTimeout(() => resultRef.current?.scrollIntoView({ behavior: "smooth" }), 200);
       }
     } catch {
@@ -406,114 +536,256 @@ export default function ShotPlannerPage() {
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* LEFT PANEL — Input */}
         <div className="w-full md:w-[40%] flex flex-col border-r border-white/[0.06] overflow-y-auto scrollbar-hide p-5 gap-5">
-          {/* Scene Description */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Describe Your Scene</label>
-            <textarea value={scene} onChange={(e) => setScene(e.target.value)}
-              placeholder={"e.g. A tense interrogation scene in a dimly lit police station. Detective Maya confronts the suspect across a steel table. Rain hits the window. The suspect smirks..."}
-              className="w-full h-36 bg-[#0D0D12] border border-white/[0.08] rounded-xl p-4 font-sans text-sm text-text-secondary leading-relaxed resize-none focus:outline-none focus:border-amber/60 transition-colors placeholder:text-text-muted/40" />
-            <div className="flex justify-between mt-1">
-              <span className="text-[10px] text-text-muted">Be as vivid as possible for better results</span>
-              <span className="text-[10px] text-text-muted">{scene.length} chars</span>
-            </div>
+          {/* Tabs */}
+          <div className="flex gap-4 border-b border-white/5 pb-2 shrink-0">
+            <button
+              onClick={() => setActiveTab("manual")}
+              className={`pb-2 text-sm font-semibold relative transition-colors cursor-pointer ${
+                activeTab === "manual" ? "text-amber" : "text-text-muted hover:text-white"
+              }`}
+            >
+              Manual Plan
+              {activeTab === "manual" && (
+                <motion.div layoutId="activePlannerTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-amber" />
+              )}
+            </button>
+            <button
+              onClick={() => setActiveTab("script")}
+              className={`pb-2 text-sm font-semibold relative transition-colors cursor-pointer ${
+                activeTab === "script" ? "text-amber" : "text-text-muted hover:text-white"
+              }`}
+            >
+              Upload Script
+              {activeTab === "script" && (
+                <motion.div layoutId="activePlannerTab" className="absolute bottom-0 left-0 right-0 h-[2px] bg-amber" />
+              )}
+            </button>
           </div>
 
-          {/* Location */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Location (optional)</label>
-            <input value={location} onChange={(e) => setLocation(e.target.value)}
-              placeholder="e.g. Abandoned warehouse, Mumbai rooftop, Forest clearing..."
-              className="w-full h-10 bg-[#0D0D12] border border-white/[0.08] rounded-lg px-3 text-sm text-white focus:outline-none focus:border-amber/60 transition-colors placeholder:text-text-muted/40" />
-          </div>
+          {activeTab === "manual" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col gap-5">
+              {/* Scene Description */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Describe Your Scene</label>
+                <textarea value={scene} onChange={(e) => setScene(e.target.value)}
+                  placeholder={"e.g. A tense interrogation scene in a dimly lit police station. Detective Maya confronts the suspect across a steel table. Rain hits the window. The suspect smirks..."}
+                  className="w-full h-36 bg-[#0D0D12] border border-white/[0.08] rounded-xl p-4 font-sans text-sm text-text-secondary leading-relaxed resize-none focus:outline-none focus:border-amber/60 transition-colors placeholder:text-text-muted/40" />
+                <div className="flex justify-between mt-1">
+                  <span className="text-[10px] text-text-muted">Be as vivid as possible for better results</span>
+                  <span className="text-[10px] text-text-muted">{scene.length} chars</span>
+                </div>
+              </div>
 
-          <PillSelector label="Genre" items={GENRES} selected={genre} onSelect={(v) => setGenre(genre === v ? null : v)} />
-          <PillSelector label="Mood / Tone" items={MOODS} selected={mood} onSelect={(v) => setMood(mood === v ? null : v)} />
-          <PillSelector label="Time of Day" items={TIMES} selected={timeOfDay} onSelect={(v) => setTimeOfDay(timeOfDay === v ? null : v)} />
+              {/* Location */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Location (optional)</label>
+                <input value={location} onChange={(e) => setLocation(e.target.value)}
+                  placeholder="e.g. Abandoned warehouse, Mumbai rooftop, Forest clearing..."
+                  className="w-full h-10 bg-[#0D0D12] border border-white/[0.08] rounded-lg px-3 text-sm text-white focus:outline-none focus:border-amber/60 transition-colors placeholder:text-text-muted/40" />
+              </div>
 
-          {/* Shot Count */}
-          <div>
-            <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Number of Shots</label>
-            <div className="flex gap-2">
-              {SHOT_COUNTS.map((n) => (
-                <button key={n} onClick={() => setShotCount(n)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
-                    shotCount === n ? "bg-amber text-[#0A0A0F] border-amber" : "border-white/[0.06] text-text-muted hover:text-white hover:border-white/15"
-                  }`}>{n}</button>
-              ))}
-            </div>
-          </div>
+              <PillSelector label="Genre" items={GENRES} selected={genre} onSelect={(v) => setGenre(genre === v ? null : v)} />
+              <PillSelector label="Mood / Tone" items={MOODS} selected={mood} onSelect={(v) => setMood(mood === v ? null : v)} />
+              <PillSelector label="Time of Day" items={TIMES} selected={timeOfDay} onSelect={(v) => setTimeOfDay(timeOfDay === v ? null : v)} />
 
-          {/* Generate Button */}
-          <button onClick={handleGenerate} disabled={loading || !scene.trim()}
-            className="w-full h-12 bg-amber text-[#0A0A0F] font-bold rounded-xl text-sm hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-amber/20">
-            {loading ? (
-              <><span className="w-4 h-4 border-2 border-[#0A0A0F] border-t-transparent rounded-full animate-spin" /> Generating Shot Plan...</>
-            ) : (
-              <>🎬 Generate Shot Plan</>
-            )}
-          </button>
+              {/* Shot Count */}
+              <div>
+                <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Number of Shots</label>
+                <div className="flex gap-2">
+                  {SHOT_COUNTS.map((n) => (
+                    <button key={n} onClick={() => setShotCount(n)}
+                      className={`flex-1 py-2 rounded-lg text-xs font-bold border transition-all ${
+                        shotCount === n ? "bg-amber text-[#0A0A0F] border-amber" : "border-white/[0.06] text-text-muted hover:text-white hover:border-white/15"
+                      }`}>{n}</button>
+                  ))}
+                </div>
+              </div>
 
-          {error && (
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              className="p-3 rounded-lg bg-error/10 border border-error/20 text-error text-xs">{error}</motion.div>
+              {/* Generate Button */}
+              <button onClick={() => handleGenerate()} disabled={loading || !scene.trim()}
+                className="w-full h-12 bg-amber text-[#0A0A0F] font-bold rounded-xl text-sm hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-50 disabled:scale-100 flex items-center justify-center gap-2 shadow-lg shadow-amber/20">
+                {loading ? (
+                  <><span className="w-4 h-4 border-2 border-[#0A0A0F] border-t-transparent rounded-full animate-spin" /> Generating Shot Plan...</>
+                ) : (
+                  <>🎬 Generate Shot Plan</>
+                )}
+              </button>
+
+              {error && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+                  className="p-3 rounded-lg bg-error/10 border border-error/20 text-error text-xs">{error}</motion.div>
+              )}
+            </motion.div>
+          )}
+
+          {activeTab === "script" && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex flex-col h-full gap-5">
+              {uploadedScenes.length === 0 ? (
+                <div
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`flex-1 min-h-[300px] rounded-2xl border-2 border-dashed flex flex-col items-center justify-center gap-3 transition-all cursor-pointer ${
+                    isDragOver
+                      ? "border-amber bg-amber/[0.04] shadow-[0_0_20px_rgba(245,166,35,0.05)]"
+                      : "border-amber/30 hover:border-amber/60 bg-amber/[0.01]"
+                  }`}
+                >
+                  <input
+                    type="file"
+                    ref={fileInputRef}
+                    onChange={(e) => e.target.files && handleFile(e.target.files[0])}
+                    accept=".txt,.pdf,.fdx"
+                    className="hidden"
+                  />
+                  <CameraIcon className="w-12 h-12 text-amber/60" />
+                  <div className="text-center space-y-1">
+                    <p className="text-sm font-semibold text-text-primary">
+                      Drop your script (.txt, .pdf)
+                    </p>
+                    <p className="text-xs text-text-muted">or click to browse</p>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex flex-col h-full gap-4">
+                  {/* Global Script Settings */}
+                  <div className="shrink-0 p-4 rounded-xl border border-white/5 bg-surface space-y-4">
+                    <div className="flex justify-between items-center">
+                      <h3 className="text-xs font-bold text-white uppercase tracking-wider">Script Settings</h3>
+                      <button onClick={() => { setUploadedScenes([]); setSelectedSceneIndex(null); }} className="text-[10px] text-text-muted hover:text-white underline">
+                        Upload different script
+                      </button>
+                    </div>
+                    <PillSelector label="Genre" items={GENRES} selected={genre} onSelect={(v) => setGenre(genre === v ? null : v)} />
+                    <PillSelector label="Mood / Tone" items={MOODS} selected={mood} onSelect={(v) => setMood(mood === v ? null : v)} />
+                    <div>
+                      <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Shots per Scene</label>
+                      <div className="flex gap-2">
+                        {SHOT_COUNTS.map((n) => (
+                          <button key={n} onClick={() => setShotCount(n)}
+                            className={`flex-1 py-1.5 rounded-lg text-[10px] font-bold border transition-all ${
+                              shotCount === n ? "bg-amber text-[#0A0A0F] border-amber" : "border-white/[0.06] text-text-muted hover:text-white hover:border-white/15"
+                            }`}>{n}</button>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Scenes List */}
+                  <div className="flex-1 overflow-y-auto space-y-2 pr-1 pb-4">
+                    {uploadedScenes.map((s, i) => {
+                      const isSelected = selectedSceneIndex === i;
+                      const hasPlan = !!scenePlans[i];
+                      const isGenerating = loading && isSelected;
+                      return (
+                        <div key={i} onClick={() => setSelectedSceneIndex(i)} 
+                          className={`p-4 rounded-xl border transition-all cursor-pointer ${
+                            isSelected ? "border-amber bg-amber/5" : "border-white/5 bg-surface hover:border-white/20"
+                          }`}>
+                          <div className="flex justify-between items-start mb-2 gap-2">
+                            <h4 className="text-[11px] font-bold text-white leading-relaxed font-mono uppercase tracking-tight">{s.heading}</h4>
+                            <button 
+                              onClick={(e) => { e.stopPropagation(); handleGenerate(i); }} 
+                              disabled={loading} 
+                              className={`shrink-0 px-2.5 py-1 rounded text-[10px] font-bold transition-colors ${
+                                hasPlan 
+                                  ? "bg-white/10 text-white hover:bg-white/20" 
+                                  : "bg-amber text-[#0A0A0F] hover:bg-amber-hover"
+                              }`}>
+                              {isGenerating ? "Generating..." : (hasPlan ? "Regenerate" : "Generate")}
+                            </button>
+                          </div>
+                          <p className="text-[10px] text-text-muted line-clamp-2">{s.body}</p>
+                          {hasPlan && !isGenerating && (
+                            <span className="text-[9px] text-emerald-400 font-bold mt-2 block flex items-center gap-1">
+                              <span className="w-3 h-3 rounded-full bg-emerald-400/20 flex items-center justify-center">✓</span>
+                              Shot Plan Ready
+                            </span>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+            </motion.div>
           )}
         </div>
 
         {/* RIGHT PANEL — Results */}
         <div ref={resultRef} className="hidden md:flex flex-1 flex-col bg-[#0A0A0F] overflow-y-auto scrollbar-hide">
-          {loading && (
-            <div className="flex-1 flex flex-col items-center justify-center gap-4">
-              <div className="relative">
-                <div className="w-16 h-16 rounded-2xl bg-amber/10 flex items-center justify-center">
-                  <CameraIcon className="w-8 h-8 text-amber animate-pulse" />
-                </div>
-                <div className="absolute inset-0 rounded-2xl border-2 border-amber/30 animate-ping" />
-              </div>
-              <p className="text-sm text-text-muted">AI is planning your shots...</p>
-              <p className="text-[11px] text-text-muted/50">Analyzing scene, selecting lenses, designing lighting</p>
-            </div>
-          )}
-
-          {!plan && !loading && (
-            <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
-              <div className="w-20 h-20 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center mb-5">
-                <CameraIcon className="w-10 h-10 text-text-muted/20" />
-              </div>
-              <p className="text-sm text-text-muted mb-1">Your AI-generated shot plan will appear here</p>
-              <p className="text-xs text-text-muted/50">Describe a scene → get lens, lighting & gear for every shot</p>
-            </div>
-          )}
-
-          {plan && (
-            <div className="p-6 space-y-4">
-              {/* Header Stats */}
-              <div className="flex items-center gap-4 mb-2">
-                <div className="flex items-center gap-2">
-                  <span className="w-8 h-8 rounded-lg bg-amber/15 flex items-center justify-center text-amber text-sm font-bold">{plan.shots.length}</span>
-                  <span className="text-xs text-text-muted">Shots</span>
-                </div>
-                {plan.sceneOverview?.estimatedDuration && (
-                  <div className="flex items-center gap-2">
-                    <span className="w-8 h-8 rounded-lg bg-indigo/15 flex items-center justify-center text-indigo text-sm">⏱</span>
-                    <span className="text-xs text-text-muted">{plan.sceneOverview.estimatedDuration}</span>
+          {(() => {
+            const currentPlan = activeTab === "script" && selectedSceneIndex !== null ? scenePlans[selectedSceneIndex] : plan;
+            const currentStoryboards = activeTab === "script" && selectedSceneIndex !== null ? (sceneStoryboards[selectedSceneIndex] || {}) : storyboards;
+            
+            if (loading) {
+              return (
+                <div className="flex-1 flex flex-col items-center justify-center gap-4">
+                  <div className="relative">
+                    <div className="w-16 h-16 rounded-2xl bg-amber/10 flex items-center justify-center">
+                      <CameraIcon className="w-8 h-8 text-amber animate-pulse" />
+                    </div>
+                    <div className="absolute inset-0 rounded-2xl border-2 border-amber/30 animate-ping" />
                   </div>
-                )}
-              </div>
+                  <p className="text-sm text-text-muted">AI is planning your shots...</p>
+                  <p className="text-[11px] text-text-muted/50">Analyzing scene, selecting lenses, designing lighting</p>
+                </div>
+              );
+            }
 
-              {/* Scene Overview */}
-              {plan.sceneOverview && <OverviewPanel overview={plan.sceneOverview} />}
+            if (!currentPlan) {
+              return (
+                <div className="flex-1 flex flex-col items-center justify-center text-center px-8">
+                  <div className="w-20 h-20 rounded-2xl bg-white/[0.02] border border-white/[0.06] flex items-center justify-center mb-5">
+                    <CameraIcon className="w-10 h-10 text-text-muted/20" />
+                  </div>
+                  <p className="text-sm text-text-muted mb-1">Your AI-generated shot plan will appear here</p>
+                  {activeTab === "script" ? (
+                    <p className="text-xs text-text-muted/50">Select a scene on the left and click Generate</p>
+                  ) : (
+                    <p className="text-xs text-text-muted/50">Describe a scene → get lens, lighting & gear for every shot</p>
+                  )}
+                </div>
+              );
+            }
 
-              {/* Shot Cards */}
-              <div className="space-y-3 pt-2">
-                <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">Shot Breakdown</h3>
-                {plan.shots.map((shot, i) => (
-                  <ShotCard key={i} shot={shot} index={i}
-                    storyboard={storyboards[shot.shotNumber]}
-                    onGenerateSketch={() => generateStoryboard(shot, location || undefined)} />
-                ))}
+            return (
+              <div className="p-6 space-y-4">
+                {/* Header Stats */}
+                <div className="flex items-center gap-4 mb-2">
+                  <div className="flex items-center gap-2">
+                    <span className="w-8 h-8 rounded-lg bg-amber/15 flex items-center justify-center text-amber text-sm font-bold">{currentPlan.shots.length}</span>
+                    <span className="text-xs text-text-muted">Shots</span>
+                  </div>
+                  {currentPlan.sceneOverview?.estimatedDuration && (
+                    <div className="flex items-center gap-2">
+                      <span className="w-8 h-8 rounded-lg bg-indigo/15 flex items-center justify-center text-indigo text-sm">⏱</span>
+                      <span className="text-xs text-text-muted">{currentPlan.sceneOverview.estimatedDuration}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* Scene Overview */}
+                {currentPlan.sceneOverview && <OverviewPanel overview={currentPlan.sceneOverview} />}
+
+                {/* Shot Cards */}
+                <div className="space-y-3 pt-2">
+                  <h3 className="text-xs font-bold uppercase tracking-widest text-text-muted">Shot Breakdown</h3>
+                  {currentPlan.shots.map((shot, i) => (
+                    <ShotCard key={i} shot={shot} index={i}
+                      storyboard={currentStoryboards[shot.shotNumber]}
+                      onGenerateSketch={() => generateStoryboard(
+                        shot, 
+                        activeTab === "script" && selectedSceneIndex !== null ? uploadedScenes[selectedSceneIndex]?.heading : location, 
+                        activeTab === "script" && selectedSceneIndex !== null ? selectedSceneIndex : undefined
+                      )} />
+                  ))}
+                </div>
               </div>
-            </div>
-          )}
+            );
+          })()}
         </div>
       </div>
     </div>
