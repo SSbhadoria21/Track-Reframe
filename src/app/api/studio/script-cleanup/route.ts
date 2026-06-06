@@ -45,13 +45,28 @@ Your job:
 4. Preserve all story content - do NOT add, remove, or change the actual story, dialogue, or scenes.
 5. Output ONLY the cleaned screenplay text. No explanation. No preamble.`;
 
-    const model = genAI.getGenerativeModel({
-      model: "gemini-2.5-flash",
-      systemInstruction: systemPrompt
-    });
-    const response = await model.generateContent(rawText);
+    const models = ["gemini-2.5-flash", "gemini-2.0-flash", "gemini-2.5-flash-lite", "gemini-2.0-flash-lite", "gemini-1.5-flash"];
+    let cleanedText = "";
+    let lastError: any = null;
 
-    const cleanedText = response.response.text();
+    for (const modelName of models) {
+      try {
+        const model = genAI.getGenerativeModel({
+          model: modelName,
+          systemInstruction: systemPrompt
+        });
+        const response = await model.generateContent(rawText);
+        cleanedText = response.response.text();
+        if (cleanedText) break;
+      } catch (err: any) {
+        lastError = err;
+        console.warn(`Model ${modelName} failed in script cleanup:`, err.message);
+      }
+    }
+
+    if (!cleanedText) {
+      throw lastError || new Error("All models failed to generate content");
+    }
 
     return NextResponse.json({
       success: true,

@@ -125,15 +125,9 @@ function isRoughText(text: string): boolean {
   
   // Basic screenplay markers
   const hasSceneHeading = lines.some(l => /^(INT\.|EXT\.|INT\/EXT\.|I\/E\.)/i.test(l.trim()));
-  const allCapsLines = lines.filter(l => l.trim() === l.trim().toUpperCase() && l.trim().length > 2 && l.trim().length < 40);
   
-  // If it's one big block of text without scene headings, it's rough
-  if (!hasSceneHeading && lines.length <= 3 && trimmed.length > 100) return true;
-  
-  // If there are many lines but almost no scene headings or character names (all caps), it's rough
-  if (!hasSceneHeading && allCapsLines.length < 2 && lines.length > 2) return true;
-  
-  return false;
+  // If it doesn't have standard scene headings, treat it as rough text
+  return !hasSceneHeading;
 }
 
 const LANGUAGES = [
