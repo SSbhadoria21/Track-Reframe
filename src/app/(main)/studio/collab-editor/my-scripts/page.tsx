@@ -83,7 +83,19 @@ export default function MyScriptsPage() {
       ownedScripts?.forEach(processScript);
       collabScripts?.forEach(processScript);
       
-      const all = Array.from(allMap.values()).sort((a: any, b: any) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+      let all = Array.from(allMap.values());
+      const now = new Date().getTime();
+      const tenDaysMs = 10 * 24 * 3600 * 1000;
+      
+      // Auto-delete trash scripts older than 10 days
+      const scriptsToDelete = all.filter((s: any) => s.status === 'Trash' && (now - new Date(s.updated_at || 0).getTime()) > tenDaysMs);
+      if (scriptsToDelete.length > 0) {
+        await supabase.from('scripts').delete().in('id', scriptsToDelete.map((s: any) => s.id));
+      }
+      
+      all = all.filter((s: any) => !(s.status === 'Trash' && (now - new Date(s.updated_at || 0).getTime()) > tenDaysMs));
+      all.sort((a: any, b: any) => new Date(b.updated_at || 0).getTime() - new Date(a.updated_at || 0).getTime());
+      
       setScripts(all);
     };
     fetchScripts();
@@ -91,10 +103,17 @@ export default function MyScriptsPage() {
 
   const displayScripts = useMemo(() => {
     let result = scripts;
-    if (activeTab === "My Scripts") {
-      result = result.filter(s => s.user_id === userId && (!s.script_collaborators || s.script_collaborators.length <= 1));
-    } else if (activeTab === "Shared with Me") {
-      result = result.filter(s => s.user_id !== userId);
+    if (activeTab === "Archived") {
+      result = result.filter(s => s.status === 'Archived');
+    } else if (activeTab === "Trash") {
+      result = result.filter(s => s.status === 'Trash');
+    } else {
+      result = result.filter(s => s.status !== 'Archived' && s.status !== 'Trash');
+      if (activeTab === "My Scripts") {
+        result = result.filter(s => s.user_id === userId && (!s.script_collaborators || s.script_collaborators.length <= 1));
+      } else if (activeTab === "Shared with Me") {
+        result = result.filter(s => s.user_id !== userId);
+      }
     }
     
     if (searchQuery.trim()) {
@@ -120,19 +139,58 @@ export default function MyScriptsPage() {
       if (!script) return;
 
       if (script.user_id === userId) {
-        // Owner deleting the script
-        const { error } = await supabase.from('scripts').delete().eq('id', id);
-        if (error) throw error;
+        if (script.status === 'Trash') {
+          // Owner permanently deleting the script
+          const { error } = await supabase.from('scripts').delete().eq('id', id);
+          if (error) throw error;
+          setScripts(prev => prev.filter(s => s.id !== id));
+        } else {
+          // Owner moving script to trash
+          const { error } = await supabase.from('scripts').update({ status: 'Trash', updated_at: new Date().toISOString() }).eq('id', id);
+          if (error) throw error;
+          setScripts(prev => prev.map(s => s.id === id ? { ...s, status: 'Trash', updated_at: new Date().toISOString() } : s));
+        }
       } else {
         // Collaborator removing themselves
         const { error } = await supabase.from('script_collaborators').delete().eq('script_id', id).eq('user_id', userId);
         if (error) throw error;
+        setScripts(prev => prev.filter(s => s.id !== id));
       }
-      
-      setScripts(prev => prev.filter(s => s.id !== id));
     } catch (err: any) {
       console.error("Error deleting script:", err);
       alert("Failed to delete script: " + (err.message || "Unknown error"));
+    }
+  };
+
+  const handleArchiveScript = async (id: string) => {
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      const { error } = await supabase.from('scripts').update({ status: 'Archived', updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+      setScripts(prev => prev.map(s => s.id === id ? { ...s, status: 'Archived', updated_at: new Date().toISOString() } : s));
+    } catch (err: any) {
+      console.error("Error archiving script:", err);
+      alert("Failed to archive script: " + (err.message || "Unknown error"));
+    }
+  };
+
+  const handleUnarchiveScript = async (id: string) => {
+    try {
+      const supabase = createBrowserClient(
+        process.env.NEXT_PUBLIC_SUPABASE_URL!,
+        process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+      );
+      
+      const { error } = await supabase.from('scripts').update({ status: 'Draft', updated_at: new Date().toISOString() }).eq('id', id);
+      if (error) throw error;
+      setScripts(prev => prev.map(s => s.id === id ? { ...s, status: 'Draft', updated_at: new Date().toISOString() } : s));
+    } catch (err: any) {
+      console.error("Error restoring script:", err);
+      alert("Failed to restore script: " + (err.message || "Unknown error"));
     }
   };
 
@@ -312,9 +370,20 @@ export default function MyScriptsPage() {
                   type={(script.project_type || "Feature Film").toUpperCase()} 
                   pages={script.page_count || 0} 
                   time={`${Math.floor((script.writing_time_seconds || 0) / 3600)}h ${Math.floor(((script.writing_time_seconds || 0) % 3600) / 60)}m`} 
-                  edited={script.updated_at ? new Date(script.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Just now"} 
+                  edited={
+                    script.status === 'Trash' 
+                      ? (() => {
+                          const diff = new Date().getTime() - new Date(script.updated_at || Date.now()).getTime();
+                          const days = Math.floor(diff / (1000 * 3600 * 24));
+                          return days === 0 ? "Deleted today" : `Deleted ${days} days ago`;
+                        })()
+                      : script.updated_at ? new Date(script.updated_at).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) : "Just now"
+                  } 
+                  status={script.status || 'Draft'}
                   onDelete={handleDeleteScript}
                   onDuplicate={handleDuplicateScript}
+                  onArchive={handleArchiveScript}
+                  onUnarchive={handleUnarchiveScript}
                   viewMode={viewMode}
                   collaborators={script.script_collaborators || []}
                 />
@@ -394,7 +463,7 @@ function NavItem({ icon: Icon, label, active, onClick }: { icon: any, label: str
   );
 }
 
-function ScriptCard({ title, type, pages, time, edited, id = "test-id", onDelete, onDuplicate, viewMode = 'grid', collaborators = [] }: { title: string, type: string, pages: number, time: string, edited: string, id?: string, onDelete?: (id: string) => void, onDuplicate?: (id: string) => void, viewMode?: 'grid' | 'list', collaborators?: any[] }) {
+function ScriptCard({ title, type, pages, time, edited, id = "test-id", status = "Draft", onDelete, onDuplicate, onArchive, onUnarchive, viewMode = 'grid', collaborators = [] }: { title: string, type: string, pages: number, time: string, edited: string, id?: string, status?: string, onDelete?: (id: string) => void, onDuplicate?: (id: string) => void, onArchive?: (id: string) => void, onUnarchive?: (id: string) => void, viewMode?: 'grid' | 'list', collaborators?: any[] }) {
   const router = useRouter();
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
@@ -427,8 +496,14 @@ function ScriptCard({ title, type, pages, time, edited, id = "test-id", onDelete
 
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (window.confirm("Are you sure you want to delete this script?")) {
-      onDelete?.(id!);
+    if (status === 'Trash') {
+      if (window.confirm("Are you sure you want to permanently delete this script?")) {
+        onDelete?.(id!);
+      }
+    } else {
+      if (window.confirm("Are you sure you want to move this script to trash?")) {
+        onDelete?.(id!);
+      }
     }
     setShowMenu(false);
   };
@@ -436,6 +511,18 @@ function ScriptCard({ title, type, pages, time, edited, id = "test-id", onDelete
   const handleDuplicate = (e: React.MouseEvent) => {
     e.stopPropagation();
     onDuplicate?.(id!);
+    setShowMenu(false);
+  };
+
+  const handleArchive = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onArchive?.(id!);
+    setShowMenu(false);
+  };
+
+  const handleUnarchive = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    onUnarchive?.(id!);
     setShowMenu(false);
   };
 
@@ -496,9 +583,24 @@ function ScriptCard({ title, type, pages, time, edited, id = "test-id", onDelete
                 <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
                   <Copy className="w-4 h-4" /> Duplicate
                 </button>
+                {status !== 'Trash' && status !== 'Archived' && (
+                  <button onClick={handleArchive} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                    <Archive className="w-4 h-4" /> Archive
+                  </button>
+                )}
+                {status === 'Archived' && (
+                  <button onClick={handleUnarchive} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                    <Archive className="w-4 h-4" /> Unarchive
+                  </button>
+                )}
+                {status === 'Trash' && (
+                  <button onClick={handleUnarchive} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                    <Clock className="w-4 h-4" /> Restore
+                  </button>
+                )}
                 <div className="h-px bg-white/10 my-1"></div>
                 <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2">
-                  <Trash2 className="w-4 h-4" /> Delete
+                  <Trash2 className="w-4 h-4" /> {status === 'Trash' ? 'Delete Permanently' : 'Delete'}
                 </button>
               </div>
             )}
@@ -534,9 +636,24 @@ function ScriptCard({ title, type, pages, time, edited, id = "test-id", onDelete
               <button onClick={handleDuplicate} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
                 <Copy className="w-4 h-4" /> Duplicate
               </button>
+              {status !== 'Trash' && status !== 'Archived' && (
+                <button onClick={handleArchive} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                  <Archive className="w-4 h-4" /> Archive
+                </button>
+              )}
+              {status === 'Archived' && (
+                <button onClick={handleUnarchive} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                  <Archive className="w-4 h-4" /> Unarchive
+                </button>
+              )}
+              {status === 'Trash' && (
+                <button onClick={handleUnarchive} className="w-full text-left px-4 py-2 text-sm text-gray-300 hover:bg-white/5 hover:text-white flex items-center gap-2">
+                  <Clock className="w-4 h-4" /> Restore
+                </button>
+              )}
               <div className="h-px bg-white/10 my-1"></div>
               <button onClick={handleDelete} className="w-full text-left px-4 py-2 text-sm text-red-400 hover:bg-red-500/10 hover:text-red-300 flex items-center gap-2">
-                <Trash2 className="w-4 h-4" /> Delete
+                <Trash2 className="w-4 h-4" /> {status === 'Trash' ? 'Delete Permanently' : 'Delete'}
               </button>
             </div>
           )}
