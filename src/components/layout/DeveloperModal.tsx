@@ -163,8 +163,7 @@ export function DeveloperModal({ isOpen, onClose }: DeveloperModalProps) {
                           <Mail className="w-4 h-4 text-amber" />
                           <h4 className="text-sm font-bold text-white">Contact</h4>
                         </div>
-                        <p className="text-sm text-text-secondary flex items-center gap-2"><Mail className="w-3 h-3"/> sumitsbhadoria21@gmail.com</p>
-                        <p className="text-sm text-text-secondary flex items-center gap-2 mt-1"><Phone className="w-3 h-3"/> +91-89620-74730</p>
+                        <p className="text-sm text-text-secondary flex items-center gap-2"><Mail className="w-3 h-3"/> trackreframe@gmail.com</p>
                       </div>
                     </div>
                     
