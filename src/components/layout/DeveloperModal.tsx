@@ -155,7 +155,7 @@ export function DeveloperModal({ isOpen, onClose }: DeveloperModalProps) {
                           <Award className="w-4 h-4 text-amber" />
                           <h4 className="text-sm font-bold text-white">Achievements</h4>
                         </div>
-                        <p className="text-sm text-text-secondary">250+ LeetCode problems solved (Java)<br/>Top ~8% on CPTrack college leaderboard</p>
+                        <p className="text-sm text-text-secondary">250+ LeetCode problems solved (Java)</p>
                       </div>
 
                       <div className="bg-background/50 rounded-2xl p-5 border border-border-default/50 flex-1">
