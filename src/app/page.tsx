@@ -15,6 +15,7 @@ import {
 } from "@/components/icons";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
 import { DeveloperModal } from "@/components/layout/DeveloperModal";
+import { CameraSimulator } from "@/components/layout/CameraSimulator";
 
 /* ─── Animated Mouse Spotlight ─── */
 function SpotlightCursor() {
@@ -173,48 +174,7 @@ export default function LandingPage() {
             </div>
           </motion.div>
 
-          {/* Hero Visual: Animated Clapperboard */}
-          <motion.div 
-            className="relative hidden lg:block"
-            initial={{ opacity: 0, scale: 0.8, rotate: 5 }}
-            animate={{ opacity: 1, scale: 1, rotate: 0 }}
-            transition={{ delay: 0.5, duration: 1, type: "spring" }}
-          >
-            <div className="absolute inset-0 bg-amber/10 blur-[100px] rounded-full" />
-            <div className="relative border border-border-default rounded-3xl p-8 bg-elevated/80 backdrop-blur-xl shadow-2xl">
-              <div className="flex justify-between items-start mb-12">
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
-                  <span className="font-mono text-[10px] text-red-500 uppercase tracking-widest">REC</span>
-                </div>
-                <span className="font-mono text-[10px] text-text-muted">2.39 : 1</span>
-              </div>
-              
-              <motion.div 
-                className="w-full aspect-video bg-gradient-to-br from-black/5 dark:from-white/5 to-transparent rounded-xl flex items-center justify-center relative overflow-hidden group border border-border-default shadow-inner"
-                whileHover={{ scale: 1.02 }}
-              >
-                <ClapperboardIcon className="w-32 h-32 text-amber animate-clap origin-top" />
-                <div className="absolute bottom-4 left-6 font-mono text-[10px] text-amber/60">ROLL_001 • TAKE_07</div>
-              </motion.div>
-
-              <div className="grid grid-cols-3 gap-8 mt-12">
-                {[
-                  { label: "ISO", val: "800" },
-                  { label: "SHUT", val: "1/48" },
-                  { label: "WB", val: "3200K" },
-                  { label: "LENS", val: "35mm" },
-                  { label: "F", val: "2.8" },
-                  { label: "FPS", val: "24" },
-                ].map(s => (
-                  <div key={s.label}>
-                    <div className="text-[9px] text-text-muted font-mono uppercase mb-1">{s.label}</div>
-                    <div className="text-xs font-bold font-mono">{s.val}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </motion.div>
+          <CameraSimulator />
         </div>
 
         {/* Film Strip Border */}
