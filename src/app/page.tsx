@@ -2,6 +2,8 @@
 
 import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 import { motion, useScroll, useTransform, useSpring } from "framer-motion";
 import { 
   ClapperboardIcon, 
@@ -51,6 +53,16 @@ export default function LandingPage() {
   const { scrollY } = useScroll();
   const y1 = useTransform(scrollY, [0, 500], [0, 200]);
   const y2 = useSpring(useTransform(scrollY, [0, 1000], [0, -150]), { stiffness: 50 });
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  const handleProtectedAction = (path: string) => {
+    if (status === "authenticated") {
+      router.push(path);
+    } else {
+      router.push("/login");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background text-text-primary selection:bg-amber selection:text-black">
@@ -63,16 +75,22 @@ export default function LandingPage() {
           <span className="font-display text-xl font-bold tracking-tight">Track Reframe</span>
         </div>
         <div className="hidden md:flex items-center gap-12 text-sm font-medium text-text-muted">
-          <Link href="#" className="hover:text-white transition-colors">Tools</Link>
-          <Link href="#" className="hover:text-white transition-colors">Community</Link>
-          <Link href="#" className="hover:text-white transition-colors">Voices</Link>
+          <button onClick={() => handleProtectedAction('/studio')} className="hover:text-text-primary transition-colors">Tools</button>
+          <button onClick={() => handleProtectedAction('/community')} className="hover:text-text-primary transition-colors">Community</button>
+          <button onClick={() => handleProtectedAction('/competitions')} className="hover:text-text-primary transition-colors">Voices</button>
         </div>
         <div className="flex items-center gap-6">
           <ThemeToggle />
           <span className="font-mono text-xs text-amber animate-pulse">00:03:24:11</span>
-          <Link href="/login" className="px-6 py-2.5 rounded-full bg-amber text-black font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,184,0,0.3)]">
-            Continue with Google
-          </Link>
+          {status === "authenticated" ? (
+            <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 transition-all shadow-[0_0_15px_rgba(255,184,0,0.3)]">
+              {session?.user?.name?.[0]?.toUpperCase() || "U"}
+            </Link>
+          ) : (
+            <Link href="/login" className="px-6 py-2.5 rounded-full bg-amber text-black font-bold text-sm hover:scale-105 active:scale-95 transition-all shadow-[0_0_20px_rgba(255,184,0,0.3)]">
+              Continue with Google
+            </Link>
+          )}
         </div>
       </nav>
 
@@ -107,10 +125,16 @@ export default function LandingPage() {
               A cinematic home for indie filmmakers. Write with AI in the voice of your favorite director, plan every shot, build your crew, and submit films to monthly competitions.
             </motion.p>
             <div className="flex flex-wrap gap-4">
-              <Link href="/signup" className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
-                Get Started Now
-              </Link>
-              <button className="px-8 py-4 rounded-full border border-white/10 text-white font-bold text-lg hover:bg-white/5 transition-all">
+              {status === "authenticated" ? (
+                <Link href="/feed" className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
+                  Go to feed
+                </Link>
+              ) : (
+                <Link href="/login" className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
+                  Get Started Now
+                </Link>
+              )}
+              <button onClick={() => handleProtectedAction('/studio')} className="px-8 py-4 rounded-full border border-border-default text-text-primary font-bold text-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all">
                 Explore the toolkit
               </button>
             </div>
@@ -124,7 +148,7 @@ export default function LandingPage() {
             transition={{ delay: 0.5, duration: 1, type: "spring" }}
           >
             <div className="absolute inset-0 bg-amber/10 blur-[100px] rounded-full" />
-            <div className="relative border border-white/10 rounded-3xl p-8 bg-[#0A0A0F]/50 backdrop-blur-xl">
+            <div className="relative border border-border-default rounded-3xl p-8 bg-elevated/80 backdrop-blur-xl shadow-2xl">
               <div className="flex justify-between items-start mb-12">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 rounded-full bg-red-500 animate-pulse" />
@@ -134,7 +158,7 @@ export default function LandingPage() {
               </div>
               
               <motion.div 
-                className="w-full aspect-video bg-gradient-to-br from-white/5 to-transparent rounded-xl flex items-center justify-center relative overflow-hidden group"
+                className="w-full aspect-video bg-gradient-to-br from-black/5 dark:from-white/5 to-transparent rounded-xl flex items-center justify-center relative overflow-hidden group border border-border-default shadow-inner"
                 whileHover={{ scale: 1.02 }}
               >
                 <ClapperboardIcon className="w-32 h-32 text-amber animate-clap origin-top" />
@@ -225,7 +249,7 @@ export default function LandingPage() {
             <p className="text-text-secondary max-w-md mb-10">
               Live chat rooms for writers, directors and cinematographers. Post a casting call, share BTS, or start a private room with an invite code.
             </p>
-            <button className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg">
+            <button onClick={() => handleProtectedAction('/community')} className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:bg-amber-hover transition-colors">
               Browse rooms
             </button>
           </div>
@@ -235,7 +259,7 @@ export default function LandingPage() {
             initial={{ rotate: -2 }}
             whileInView={{ rotate: 0 }}
           >
-            <div className="flex items-center gap-4 mb-8 pb-4 border-b border-white/5">
+            <div className="flex items-center gap-4 mb-8 pb-4 border-b border-border-default">
               <div className="w-2 h-2 rounded-full bg-amber" />
               <span className="font-mono text-[10px] uppercase tracking-widest text-text-muted">Room • NEO_NOIR_DPS • 142 members</span>
             </div>
@@ -247,7 +271,7 @@ export default function LandingPage() {
                 { name: "karan_cuts", msg: "Color graded in DaVinci 19. Game changer." },
               ].map((m, i) => (
                 <div key={i} className="flex gap-4">
-                  <div className="w-8 h-8 rounded-full bg-white/5 border border-white/10" />
+                  <div className="w-8 h-8 rounded-full bg-black/5 dark:bg-white/5 border border-border-default" />
                   <div>
                     <div className="text-[10px] font-bold text-amber mb-1">@{m.name}</div>
                     <div className="text-sm text-text-secondary">{m.msg}</div>
@@ -301,10 +325,10 @@ export default function LandingPage() {
             <span>v0.1</span>
           </div>
           
-          <div className="flex gap-4">
-            <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:border-amber transition-colors">T</div>
-            <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:border-amber transition-colors">I</div>
-            <div className="w-8 h-8 rounded-full border border-white/10 flex items-center justify-center hover:border-amber transition-colors">Y</div>
+          <div className="flex gap-4 text-text-primary">
+            <div className="w-8 h-8 rounded-full border border-border-default flex items-center justify-center hover:border-amber transition-colors">T</div>
+            <div className="w-8 h-8 rounded-full border border-border-default flex items-center justify-center hover:border-amber transition-colors">I</div>
+            <div className="w-8 h-8 rounded-full border border-border-default flex items-center justify-center hover:border-amber transition-colors">Y</div>
           </div>
         </div>
       </footer>

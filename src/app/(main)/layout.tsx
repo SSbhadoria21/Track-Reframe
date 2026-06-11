@@ -1,6 +1,7 @@
 import { Sidebar } from "@/components/layout/Sidebar";
 import { TopBar } from "@/components/layout/TopBar";
 import { BottomNav } from "@/components/layout/BottomNav";
+import { YoutubePopup } from "@/components/layout/YoutubePopup";
 import { createClient } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
 import { getServerSession } from "next-auth/next";
@@ -69,6 +70,7 @@ async function MainLayoutContent({ children }: { children: React.ReactNode }) {
         <main className="flex-1 pb-20 md:pb-0 overflow-x-hidden print:overflow-visible print:pb-0 print:block">
           {children}
         </main>
+        <YoutubePopup />
         <div className="print:hidden">
           <BottomNav />
         </div>

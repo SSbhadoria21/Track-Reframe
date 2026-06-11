@@ -3,6 +3,7 @@
 import { useState, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ImagePlusIcon, VideoIcon, XIcon, FilmIcon, SendIcon } from "lucide-react";
+import { MentionsInput } from "./MentionsInput";
 import { createClient } from "@/lib/supabase/client";
 import { toast } from "react-hot-toast";
 
@@ -135,7 +136,7 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
   };
 
   return (
-    <div className="bg-elevated border border-white/[0.06] rounded-2xl overflow-hidden transition-all shadow-xl shadow-black/20">
+    <div className="bg-elevated border border-border-default rounded-2xl overflow-hidden transition-all shadow-xl shadow-black/20">
       <input 
         type="file" 
         ref={fileInputRef} 
@@ -150,13 +151,12 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
           {userInitials}
         </div>
         <div className="flex-1">
-          <textarea
+          <MentionsInput
             value={content}
-            onChange={(e) => setContent(e.target.value)}
+            onChange={(val) => setContent(val)}
             onFocus={() => setIsExpanded(true)}
             placeholder="What's on your mind, filmmaker?"
-            rows={isExpanded ? 3 : 1}
-            className="w-full bg-transparent text-sm text-white placeholder:text-text-muted/50 resize-none focus:outline-none leading-relaxed"
+            minRows={isExpanded ? 3 : 1}
           />
 
           {/* Script / Film Link Input Areas */}
@@ -181,7 +181,7 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
                     value={tempFilmLink}
                     onChange={(e) => { setTempFilmLink(e.target.value); setFilmLink(e.target.value); }}
                     placeholder="https://vimeo.com/..."
-                    className="w-full bg-transparent text-xs text-white placeholder:text-white/30 focus:outline-none p-1"
+                    className="w-full bg-transparent text-xs text-text-primary placeholder:text-text-muted/50 focus:outline-none p-1"
                   />
                 </div>
                 <button onClick={() => { setShowFilmInput(false); setTempFilmLink(""); setFilmLink(null); }} className="absolute top-3 right-3 w-6 h-6 flex items-center justify-center text-text-muted hover:text-error transition-colors"><XIcon className="w-4 h-4" /></button>
@@ -244,7 +244,7 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
                     className={`px-2.5 py-1 rounded-full text-[10px] font-medium border transition-all ${
                       selectedTags.includes(tag)
                         ? "bg-amber text-[#0A0A0F] border-amber"
-                        : "border-white/[0.08] text-text-muted hover:text-white hover:border-white/15"
+                        : "border-border-default text-text-muted hover:text-text-primary hover:border-text-muted"
                     }`}
                   >
                     {tag}
@@ -293,14 +293,14 @@ export function PostComposer({ userInitials, userName, onPostCreated }: PostComp
                 <select 
                   value={audience} 
                   onChange={(e) => setAudience(e.target.value as any)}
-                  className="bg-transparent border border-white/10 rounded-lg text-xs text-text-muted px-2 py-1.5 outline-none focus:border-amber transition-colors"
+                  className="bg-transparent border border-border-default rounded-lg text-xs text-text-muted px-2 py-1.5 outline-none focus:border-amber transition-colors"
                 >
-                  <option value="public" className="bg-[#111118]">Public</option>
-                  <option value="followers" className="bg-[#111118]">Followers Only</option>
+                  <option value="public" className="bg-surface">Public</option>
+                  <option value="followers" className="bg-surface">Followers Only</option>
                 </select>
                 <button
                   onClick={() => { setIsExpanded(false); setContent(""); setSelectedTags([]); setError(null); clearMedia(); }}
-                  className="px-3 py-1.5 rounded-lg text-xs text-text-muted hover:text-white hover:bg-white/5 transition-colors"
+                  className="px-3 py-1.5 rounded-lg text-xs text-text-muted hover:text-text-primary hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                 >
                   Cancel
                 </button>

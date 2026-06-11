@@ -168,7 +168,7 @@ export default function FeedPage() {
     <div className="flex-1 flex flex-col h-full overflow-hidden bg-background">
       {/* Feed Header */}
       <div className="sticky top-0 z-20 flex items-center justify-between px-6 py-4 bg-background/80 backdrop-blur-md border-b border-white/5">
-        <h1 className="font-display text-xl font-bold tracking-tight text-white flex items-center gap-2">
+        <h1 className="font-display text-xl font-bold tracking-tight text-text-primary flex items-center gap-2">
           <FilmReelIcon className="w-5 h-5 text-amber" />
           The Main Feed
         </h1>
@@ -238,7 +238,7 @@ export default function FeedPage() {
               <div className="w-20 h-20 rounded-full bg-white/5 flex items-center justify-center mb-6">
                 <FilmReelIcon className="w-10 h-10 text-text-muted/40" />
               </div>
-              <h2 className="text-xl font-bold text-white mb-2">Silence on the Set</h2>
+              <h2 className="text-xl font-bold text-text-primary mb-2">Silence on the Set</h2>
               <p className="text-sm text-text-muted max-w-[280px] mb-4">
                 The feed is currently empty. Be the first to share a masterpiece!
               </p>

@@ -169,6 +169,33 @@ export async function POST(req: NextRequest) {
       return Response.json({ error: error.message }, { status: 500 });
     }
 
+    // Process Mentions
+    if (content) {
+      const mentions = content.match(/@[\w_]+/g);
+      if (mentions && mentions.length > 0) {
+        const usernames = [...new Set(mentions.map((m: string) => m.substring(1)))];
+        
+        const { data: mentionedUsers } = await supabaseAdmin
+          .from("users")
+          .select("id")
+          .in("username", usernames)
+          .neq("id", user.id);
+          
+        if (mentionedUsers && mentionedUsers.length > 0) {
+          const notificationsToInsert = mentionedUsers.map((mu: any) => ({
+            user_id: mu.id,
+            actor_id: user.id,
+            type: "mention",
+            title: "New Mention",
+            content: `mentioned you in a post`,
+            is_read: false
+          }));
+          
+          await supabaseAdmin.from("notifications").insert(notificationsToInsert);
+        }
+      }
+    }
+
     return Response.json({ post: { ...data, user_liked: false, user_bookmarked: false } });
   } catch (err: any) {
     console.error("Posts POST error:", err);

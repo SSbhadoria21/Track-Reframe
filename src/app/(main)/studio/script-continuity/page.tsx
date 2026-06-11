@@ -134,10 +134,10 @@ export default function ScriptContinuityPage() {
       const t = line.trim();
       if (/^(INT\.|EXT\.|INT\/EXT\.)/i.test(t)) return <div key={i} className="text-amber font-bold uppercase mt-4 mb-1 text-[13px]">{t}</div>;
       if (t === t.toUpperCase() && t.length < 35 && /^[A-Z\s.'-]+$/.test(t) && t.length > 1) return <div key={i} className="text-center font-bold uppercase mt-3 mb-0.5 text-[13px]">{t}</div>;
-      if (t.startsWith("(") && t.endsWith(")")) return <div key={i} className="text-center italic text-white/60 text-[12px] pl-8 pr-6">{t}</div>;
+      if (t.startsWith("(") && t.endsWith(")")) return <div key={i} className="text-center italic text-text-muted text-[12px] pl-8 pr-6">{t}</div>;
       if (/^(CUT TO:|FADE OUT\.|FADE IN:)/i.test(t)) return <div key={i} className="text-right text-text-muted uppercase text-[13px] mt-3">{t}</div>;
       if (!t) return <div key={i} className="h-3" />;
-      return <div key={i} className="text-[#E8E8E0] text-[13px] leading-relaxed mb-1">{t}</div>;
+      return <div key={i} className="text-text-primary text-[13px] leading-relaxed mb-1">{t}</div>;
     });
   }
 
@@ -154,7 +154,7 @@ export default function ScriptContinuityPage() {
       </AnimatePresence>
 
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-surface/80 backdrop-blur shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border-default bg-surface/80 backdrop-blur shrink-0">
         <div className="flex items-center gap-3">
           <ApertureIcon className="w-5 h-5 text-amber" />
           <span className="font-display text-lg font-bold">Script Continuity AI</span>
@@ -164,20 +164,20 @@ export default function ScriptContinuityPage() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* LEFT PANEL */}
-        <div className="w-full md:w-[40%] flex flex-col border-r border-white/[0.06] overflow-y-auto scrollbar-hide p-5 gap-5">
+        <div className="w-full md:w-[40%] flex flex-col border-r border-border-default overflow-y-auto scrollbar-hide p-5 gap-5">
           <div>
             <label className="text-xs font-bold uppercase tracking-widest text-text-muted mb-2 block">Your Script</label>
-            <div className="relative bg-[#0D0D12] rounded-lg border border-white/[0.08] overflow-hidden">
+            <div className="relative bg-black/5 dark:bg-[#0D0D12] rounded-lg border border-border-default overflow-hidden">
               <div className="max-h-[280px] overflow-y-auto scrollbar-hide p-4 pl-12 font-screenplay text-[13px] text-text-secondary leading-relaxed whitespace-pre-wrap" contentEditable={false}>
                 {scriptLines.map((line, i) => (
                   <div key={i} onClick={() => setMarkerLine(markerLine === i ? null : i)}
-                    className={`cursor-pointer hover:bg-white/[0.03] px-1 -mx-1 rounded relative ${markerLine !== null && i <= markerLine ? "opacity-50" : ""}`}>
+                    className={`cursor-pointer hover:bg-black/10 dark:hover:bg-white/[0.03] px-1 -mx-1 rounded relative ${markerLine !== null && i <= markerLine ? "opacity-50" : ""}`}>
                     {line || "\u00A0"}
                     {markerLine === i && <div className="absolute left-0 right-0 -bottom-px h-[2px] border-b-2 border-dashed border-amber" />}
                   </div>
                 ))}
               </div>
-              <div className="absolute left-0 top-0 bottom-0 w-9 bg-[#0A0A0F] border-r border-white/[0.04] overflow-hidden pointer-events-none">
+              <div className="absolute left-0 top-0 bottom-0 w-9 bg-black/5 dark:bg-[#0A0A0F] border-r border-border-default overflow-hidden pointer-events-none">
                 <div className="p-4 pr-2 text-right">
                   {scriptLines.map((_, i) => <div key={i} className="text-[10px] text-text-muted/40 font-mono leading-relaxed">{i + 1}</div>)}
                 </div>
@@ -185,7 +185,7 @@ export default function ScriptContinuityPage() {
             </div>
             <textarea value={script} onChange={(e) => { setScript(e.target.value); setMarkerLine(null); }}
               placeholder="Paste your script here, or type directly..."
-              className="w-full mt-2 h-24 bg-[#0D0D12] border border-white/[0.08] rounded-lg p-3 font-screenplay text-[13px] text-text-secondary resize-none focus:outline-none focus:border-amber transition-colors" />
+              className="w-full mt-2 h-24 bg-black/5 dark:bg-[#0D0D12] border border-border-default rounded-lg p-3 font-screenplay text-[13px] text-text-primary resize-none focus:outline-none focus:border-amber transition-colors" />
             {markerLine !== null && <p className="text-[11px] text-amber mt-1">Continuing from line {markerLine + 1} →</p>}
           </div>
 
@@ -195,15 +195,15 @@ export default function ScriptContinuityPage() {
               <span className="border-b border-amber pb-0.5">Choose a directorial style</span>
             </label>
             <input value={directorSearch} onChange={(e) => setDirectorSearch(e.target.value)} placeholder="Search directors..."
-              className="w-full h-9 bg-[#0D0D12] border border-white/[0.08] rounded-md px-3 text-sm text-white focus:outline-none focus:border-amber mb-2" />
+              className="w-full h-9 bg-black/5 dark:bg-[#0D0D12] border border-border-default rounded-md px-3 text-sm text-text-primary focus:outline-none focus:border-amber mb-2" />
             <div className="grid grid-cols-2 gap-2 max-h-[240px] overflow-y-auto scrollbar-hide">
               <div onClick={() => setSelectedDirector(selectedDirector === "__custom__" ? null : "__custom__")}
-                className={`p-3 rounded-lg border cursor-pointer transition-all text-sm ${selectedDirector === "__custom__" ? "border-indigo bg-indigo/10" : "border-white/[0.06] hover:bg-white/[0.03]"}`}>
+                className={`p-3 rounded-lg border cursor-pointer transition-all text-sm ${selectedDirector === "__custom__" ? "border-indigo bg-indigo/10" : "border-border-default hover:bg-black/10 dark:hover:bg-white/[0.03]"}`}>
                 <span className="font-bold text-xs">✦ Custom Style</span>
               </div>
               {filteredDirectors.map((d) => (
                 <div key={d.name} onClick={() => setSelectedDirector(selectedDirector === d.name ? null : d.name)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedDirector === d.name ? "border-indigo bg-indigo/10" : "border-white/[0.06] hover:bg-white/[0.03]"}`}>
+                  className={`p-3 rounded-lg border cursor-pointer transition-all ${selectedDirector === d.name ? "border-indigo bg-indigo/10" : "border-border-default hover:bg-black/10 dark:hover:bg-white/[0.03]"}`}>
                   <div className="flex items-center justify-between mb-1">
                     <span className="font-bold text-xs truncate">{d.name}</span>
                     <span className="text-sm">{d.flag}</span>
@@ -216,7 +216,7 @@ export default function ScriptContinuityPage() {
             </div>
             {selectedDirector === "__custom__" && (
               <textarea value={customStyle} onChange={(e) => setCustomStyle(e.target.value)} placeholder="Describe the style you want..."
-                className="w-full mt-2 h-20 bg-[#0D0D12] border border-white/[0.08] rounded-lg p-3 text-xs text-white resize-none focus:outline-none focus:border-indigo" />
+                className="w-full mt-2 h-20 bg-black/5 dark:bg-[#0D0D12] border border-border-default rounded-lg p-3 text-xs text-text-primary resize-none focus:outline-none focus:border-indigo" />
             )}
           </div>
 
@@ -237,7 +237,7 @@ export default function ScriptContinuityPage() {
             <div className="flex gap-2">
               {[{ val: "short", label: "Short (~500)" }, { val: "medium", label: "Medium (~1,000)" }, { val: "long", label: "Long (~2,000)" }].map((l) => (
                 <button key={l.val} onClick={() => setLengthChoice(l.val)}
-                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${lengthChoice === l.val ? "bg-white/10 border-white/20 text-white" : "border-white/[0.06] text-text-muted hover:text-white"}`}>{l.label}</button>
+                  className={`flex-1 py-2 rounded-lg text-xs font-medium border transition-colors ${lengthChoice === l.val ? "bg-black/10 dark:bg-white/10 border-border-default text-text-primary" : "border-border-default text-text-muted hover:text-text-primary"}`}>{l.label}</button>
               ))}
             </div>
           </div>
@@ -249,7 +249,7 @@ export default function ScriptContinuityPage() {
         </div>
 
         {/* RIGHT PANEL */}
-        <div className="hidden md:flex flex-1 flex-col bg-[#0D0D12] overflow-hidden">
+        <div className="hidden md:flex flex-1 flex-col bg-surface overflow-hidden">
           {isGenerating && (
             <div className="flex items-center gap-2 px-6 py-3 border-b border-indigo/20 bg-indigo/5">
               <span className="w-2 h-2 rounded-full bg-indigo animate-pulse" />
@@ -280,13 +280,13 @@ export default function ScriptContinuityPage() {
 
           {/* Action bar — FULLY FUNCTIONAL */}
           {streamDone && output && (
-            <div className="flex items-center gap-3 px-6 py-3 border-t border-white/[0.06] bg-surface/50">
+            <div className="flex items-center gap-3 px-6 py-3 border-t border-border-default bg-surface/50">
               <button onClick={handleRegenerate} disabled={isGenerating}
-                className="px-3 py-2 rounded-lg border border-white/[0.06] text-xs text-text-secondary hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50">↺ Regenerate</button>
+                className="px-3 py-2 rounded-lg border border-border-default text-xs text-text-secondary hover:text-text-primary hover:bg-black/10 dark:hover:bg-white/5 transition-colors disabled:opacity-50">↺ Regenerate</button>
               <button onClick={handleContinueFurther} disabled={isGenerating}
-                className="px-3 py-2 rounded-lg border border-white/[0.06] text-xs text-text-secondary hover:text-white hover:bg-white/5 transition-colors disabled:opacity-50">⊕ Continue Further</button>
+                className="px-3 py-2 rounded-lg border border-border-default text-xs text-text-secondary hover:text-text-primary hover:bg-black/10 dark:hover:bg-white/5 transition-colors disabled:opacity-50">⊕ Continue Further</button>
               <button onClick={handleCopyAll}
-                className="px-3 py-2 rounded-lg border border-white/[0.06] text-xs text-text-secondary hover:text-white hover:bg-white/5 transition-colors">⧉ Copy All</button>
+                className="px-3 py-2 rounded-lg border border-border-default text-xs text-text-secondary hover:text-text-primary hover:bg-black/10 dark:hover:bg-white/5 transition-colors">⧉ Copy All</button>
               <button onClick={handleSaveToScripts} disabled={isSaving}
                 className="px-3 py-2 rounded-lg border border-amber/20 text-xs text-amber hover:bg-amber/10 transition-colors disabled:opacity-50 flex items-center gap-1">
                 {isSaving ? <><span className="w-3 h-3 border-2 border-amber border-t-transparent rounded-full animate-spin" /> Saving...</> : "💾 Save to Scripts"}

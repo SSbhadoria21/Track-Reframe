@@ -77,6 +77,10 @@
 @layer base {
   body {
     @apply bg-background text-text-primary font-sans antialiased transition-colors duration-300;
+    cursor: none;
+  }
+  button, a, [role="button"], select {
+    cursor: none;
   }
 }
 

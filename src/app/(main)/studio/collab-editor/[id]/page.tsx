@@ -6,7 +6,7 @@ import Underline from '@tiptap/extension-underline'
 import Collaboration from '@tiptap/extension-collaboration'
 import CollaborationCursor from '@tiptap/extension-collaboration-cursor'
 import * as Y from 'yjs'
-import { WebrtcProvider } from 'y-webrtc'
+import { SupabaseProvider } from '@/components/studio/collab-editor/SupabaseProvider'
 import { ScreenplayExtension, ElementType, PageBreak } from '@/components/studio/collab-editor/ScreenplayExtension'
 import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Copy, Mail, MessageSquare, CheckCircle2, Send, Save, FileText } from 'lucide-react'
 import Link from 'next/link'
@@ -21,11 +21,11 @@ const names = ['Quentin', 'Christopher', 'Greta', 'Martin', 'Steven', 'Sofia'];
 
 // Global cache to prevent "A Yjs Doc connected to room already exists!" errors
 // on React strict mode double-mounts or frequent navigations.
-const yjsGlobalCache = new Map<string, { doc: Y.Doc, prov: WebrtcProvider }>();
+const yjsGlobalCache = new Map<string, { doc: Y.Doc, prov: SupabaseProvider }>();
 
 export default function CollabEditorPage({ params }: { params: Promise<{ id: string }> }) {
   const resolvedParams = use(params);
-  const [provider, setProvider] = useState<WebrtcProvider | null>(null);
+  const [provider, setProvider] = useState<SupabaseProvider | null>(null);
   const [ydoc, setYdoc] = useState<Y.Doc | null>(null);
 
   useEffect(() => {
@@ -39,7 +39,7 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
 
     const initDoc = async () => {
       let doc: Y.Doc;
-      let prov: WebrtcProvider;
+      let prov: SupabaseProvider;
 
       if (yjsGlobalCache.has(roomName)) {
         const cached = yjsGlobalCache.get(roomName)!;
@@ -71,15 +71,8 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
            }
         }
 
-        // 2. Setup WebRTC Provider
-        prov = new WebrtcProvider(roomName, doc, {
-          signaling: [
-            'ws://localhost:4444',
-            'wss://signaling.yjs.dev', 
-            'wss://y-webrtc-signaling-eu.herokuapp.com',
-            'wss://y-webrtc-signaling-us.herokuapp.com'
-          ]
-        });
+        // 2. Setup Supabase Provider
+        prov = new SupabaseProvider(doc, supabase, roomName);
         
         yjsGlobalCache.set(roomName, { doc, prov });
       }
@@ -124,7 +117,7 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
   return <CollabEditor provider={provider} ydoc={ydoc} scriptId={resolvedParams.id} />
 }
 
-function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, ydoc: Y.Doc, scriptId: string }) {
+function CollabEditor({ provider, ydoc, scriptId }: { provider: SupabaseProvider, ydoc: Y.Doc, scriptId: string }) {
   const [activeType, setActiveType] = useState<ElementType>('scene-heading');
   const [status, setStatus] = useState('connecting');
   const [activeUsers, setActiveUsers] = useState<any[]>([]);
@@ -512,7 +505,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: WebrtcProvider, 
 
   useEffect(() => {
     provider.on('synced', ({ synced }: { synced: boolean }) => {
-      setStatus(synced ? 'connected (p2p)' : 'connecting...')
+      setStatus(synced ? 'connected' : 'connecting...')
       if (synced && editorRef.current) {
         setTimeout(() => extractStats(editorRef.current), 100);
       }

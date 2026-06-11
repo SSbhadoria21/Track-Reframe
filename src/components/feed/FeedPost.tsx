@@ -218,6 +218,19 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
     } catch (err) { console.error("Failed to delete comment:", err); }
   };
 
+  const renderContent = (text: string) => {
+    if (!text) return null;
+    const parts = text.split(/(@[\w_]+|#[\w\u0590-\u05ff]+)/g);
+    return parts.map((part, i) => {
+      if (part.startsWith("@")) {
+        return <Link key={i} href={`/creator/${part.slice(1)}`} className="text-indigo hover:underline" onClick={(e) => e.stopPropagation()}>{part}</Link>;
+      } else if (part.startsWith("#")) {
+        return <Link key={i} href={`/discover/tags?tag=${part.slice(1)}`} className="text-amber hover:underline" onClick={(e) => e.stopPropagation()}>{part}</Link>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   return (
     <div className={`bg-surface border rounded-2xl p-5 flex flex-col gap-4 relative transition-colors hover:bg-elevated ${post.is_competition_entry || post.isCompetition ? 'border-l-2 border-l-amber border-y-border-default border-r-border-default glow-amber' : 'border-border-default'}`}>
       
@@ -248,7 +261,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
                   onClick={handleFollow}
                   className={`px-3 py-1 rounded-full text-[11px] font-bold transition-all duration-200 border ${
                     following 
-                      ? "bg-transparent border-white/20 text-text-muted hover:border-white/40 hover:text-white" 
+                      ? "bg-transparent border-white/20 text-text-muted hover:border-white/40 hover:text-text-primary" 
                       : "bg-amber border-amber text-black hover:bg-amber-hover hover:scale-105 active:scale-95"
                   }`}
                 >
@@ -262,7 +275,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
           {post.role && <span className="text-[10px] font-medium text-text-secondary bg-surface px-2 py-0.5 rounded-full w-max mt-0.5 border border-border-default">{post.role}</span>}
         </div>
         <div className="relative">
-          <button onClick={() => setShowMenu(!showMenu)} className="text-text-muted hover:text-white p-2">
+          <button onClick={() => setShowMenu(!showMenu)} className="text-text-muted hover:text-text-primary p-2">
             <svg className="w-5 h-5" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="1"/><circle cx="12" cy="5" r="1"/><circle cx="12" cy="19" r="1"/></svg>
           </button>
           <AnimatePresence>
@@ -292,7 +305,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
           </div>
         </div>
       ) : (
-        <p className="text-sm text-text-secondary leading-relaxed">{post.content}</p>
+        <p className="text-sm text-text-secondary leading-relaxed whitespace-pre-wrap">{renderContent(post.content)}</p>
       )}
 
       {/* SCRIPT TEASER */}
@@ -322,7 +335,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
                <svg className="w-6 h-6" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polygon points="5 3 19 12 5 21 5 3"/></svg>
              </div>
              <div className="flex-1 min-w-0">
-               <h4 className="text-sm font-bold text-white group-hover:text-amber transition-colors">Watch Film</h4>
+               <h4 className="text-sm font-bold text-text-primary group-hover:text-amber transition-colors">Watch Film</h4>
                <p className="text-xs text-text-muted truncate">{post.film_link}</p>
              </div>
            </a>
@@ -402,7 +415,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
       <div className="flex items-center justify-between pt-2 border-t border-border-default">
         <div className="flex items-center gap-5">
           {/* Like */}
-          <button onClick={handleLike} className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${liked ? "text-amber" : "text-text-muted hover:text-white"}`}>
+          <button onClick={handleLike} className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${liked ? "text-amber" : "text-text-muted hover:text-text-primary"}`}>
             <motion.svg animate={liked ? { scale: [1, 1.4, 1] } : { scale: 1 }} transition={{ duration: 0.4, ease: "easeInOut" }}
               className={`w-5 h-5 ${liked ? "fill-amber" : "fill-none"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
               <path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/>
@@ -423,7 +436,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
           </button>
 
           {/* Comment */}
-          <button onClick={handleToggleComments} className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${showComments ? "text-white" : "text-text-muted hover:text-white"}`}>
+          <button onClick={handleToggleComments} className={`flex items-center gap-1.5 text-xs font-medium transition-colors ${showComments ? "text-text-primary" : "text-text-muted hover:text-text-primary"}`}>
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
             {commentCount}
           </button>
@@ -435,7 +448,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
         </div>
 
         {/* Bookmark — persisted */}
-        <button onClick={handleSave} className={`p-2 transition-colors flex items-center gap-1.5 text-xs font-medium ${saved ? "text-indigo" : "text-text-muted hover:text-white"}`}>
+        <button onClick={handleSave} className={`p-2 transition-colors flex items-center gap-1.5 text-xs font-medium ${saved ? "text-indigo" : "text-text-muted hover:text-text-primary"}`}>
           <svg className={`w-5 h-5 ${saved ? "fill-indigo" : "fill-none"}`} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path d="M19 21l-7-5-7 5V5a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2z"/></svg>
         </button>
       </div>
@@ -466,7 +479,7 @@ export function FeedPost({ post, currentUser, onDelete, onEdit }: {
                           <span className="font-bold text-sm text-text-primary">{author?.display_name || "User"}</span>
                           <span className="text-[10px] text-text-muted">@{author?.username || "user"}</span>
                         </div>
-                        <p className="text-sm text-text-secondary">{c.content}</p>
+                        <p className="text-sm text-text-secondary mt-1 whitespace-pre-wrap">{renderContent(c.content)}</p>
                         {cIsOwner && (
                           <button onClick={() => handleDeleteComment(c.id)} className="absolute top-2 right-2 p-1 text-text-muted hover:text-error opacity-0 group-hover:opacity-100 transition-opacity">
                             <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -565,9 +578,9 @@ function ShareModal({ post, onClose }: { post: any, onClose: () => void }) {
         onClick={(e) => e.stopPropagation()}
         className="w-full max-w-md bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden flex flex-col"
       >
-        <div className="p-4 border-b border-white/5 flex justify-between items-center bg-black/20">
-          <h2 className="font-display font-bold text-lg text-white">Share</h2>
-          <button onClick={onClose} className="p-2 rounded-lg hover:bg-white/5 text-text-muted hover:text-white transition-colors">
+        <div className="p-4 border-b border-border-default flex justify-between items-center bg-black/5 dark:bg-black/20">
+          <h2 className="font-display font-bold text-lg text-text-primary">Share</h2>
+          <button onClick={onClose} className="p-2 rounded-lg hover:bg-black/5 dark:hover:bg-white/5 text-text-muted hover:text-text-primary transition-colors">
             <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M6 18L18 6M6 6l12 12" /></svg>
           </button>
         </div>
@@ -585,7 +598,7 @@ function ShareModal({ post, onClose }: { post: any, onClose: () => void }) {
                 <div className={`w-14 h-14 rounded-full flex items-center justify-center ${opt.color} shadow-lg shadow-black/20 group-hover:scale-105 group-active:scale-95 transition-all border border-white/10`}>
                   {opt.icon}
                 </div>
-                <span className="text-xs font-medium text-text-muted group-hover:text-white transition-colors">{opt.name}</span>
+                <span className="text-xs font-medium text-text-muted group-hover:text-text-primary transition-colors">{opt.name}</span>
               </a>
             ))}
           </div>

@@ -7,6 +7,8 @@ import { motion } from "framer-motion";
 export function RecentListingsSidebar() {
   const [listings, setListings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [trendingTags, setTrendingTags] = useState<any[]>([]);
+  const [loadingTags, setLoadingTags] = useState(true);
 
   useEffect(() => {
     const fetchListings = async () => {
@@ -24,14 +26,28 @@ export function RecentListingsSidebar() {
         setLoading(false);
       }
     };
+    const fetchTags = async () => {
+      try {
+        const res = await fetch("/api/search/tags");
+        if (res.ok) {
+          const data = await res.json();
+          setTrendingTags(data.tags || []);
+        }
+      } catch (err) {
+        console.error("Failed to fetch tags:", err);
+      } finally {
+        setLoadingTags(false);
+      }
+    };
     fetchListings();
+    fetchTags();
   }, []);
 
   return (
     <div className="w-80 shrink-0 hidden lg:block sticky top-[88px] h-[calc(100vh-88px)] overflow-y-auto scrollbar-hide pb-10">
-      <div className="bg-surface border border-white/5 rounded-2xl overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-white/5 bg-black/20">
-          <h2 className="font-display font-bold text-lg text-white flex items-center gap-2">
+      <div className="bg-surface border border-border-default rounded-2xl overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-border-default bg-black/5 dark:bg-black/20">
+          <h2 className="font-display font-bold text-lg text-text-primary flex items-center gap-2">
             <svg className="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M21 13.255A23.931 23.931 0 0112 15c-3.183 0-6.22-.62-9-1.745M16 6V4a2 2 0 00-2-2h-4a2 2 0 00-2 2v2m4 6h.01M5 20h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
             </svg>
@@ -61,10 +77,10 @@ export function RecentListingsSidebar() {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: i * 0.1 }}
                 key={listing.id}
-                className="group border-b border-white/5 last:border-0"
+                className="group border-b border-border-default last:border-0"
               >
-                <Link href="/studio/find-crew" className="block p-4 hover:bg-white/5 transition-colors">
-                  <h3 className="font-bold text-sm text-white group-hover:text-amber transition-colors line-clamp-1">
+                <Link href="/studio/find-crew" className="block p-4 hover:bg-black/5 dark:hover:bg-white/5 transition-colors">
+                  <h3 className="font-bold text-sm text-text-primary group-hover:text-amber transition-colors line-clamp-1">
                     {listing.project_title}
                   </h3>
                   <p className="text-xs text-text-muted mt-1 flex items-center gap-2">
@@ -78,12 +94,12 @@ export function RecentListingsSidebar() {
                   {listing.roles_needed && listing.roles_needed.length > 0 && (
                     <div className="flex gap-1.5 mt-2 flex-wrap">
                       {listing.roles_needed.slice(0, 2).map((role: string, idx: number) => (
-                        <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-bold bg-white/5 text-text-secondary border border-white/10">
+                        <span key={idx} className="px-2 py-0.5 rounded text-[10px] font-bold bg-black/5 dark:bg-white/5 text-text-secondary border border-border-default">
                           {role}
                         </span>
                       ))}
                       {listing.roles_needed.length > 2 && (
-                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-white/5 text-text-muted">
+                        <span className="px-1.5 py-0.5 rounded text-[10px] font-bold bg-black/5 dark:bg-white/5 text-text-muted">
                           +{listing.roles_needed.length - 2}
                         </span>
                       )}
@@ -97,16 +113,16 @@ export function RecentListingsSidebar() {
         
         <Link 
           href="/studio/find-crew" 
-          className="p-3 text-center text-xs font-bold text-amber hover:bg-amber/10 transition-colors border-t border-white/5"
+          className="p-3 text-center text-xs font-bold text-amber hover:bg-amber/10 transition-colors border-t border-border-default"
         >
           View All Opportunities
         </Link>
       </div>
 
       {/* Trending Topics Placeholder Container */}
-      <div className="mt-6 bg-surface border border-white/5 rounded-2xl overflow-hidden flex flex-col">
-        <div className="p-4 border-b border-white/5 bg-black/20">
-          <h2 className="font-display font-bold text-lg text-white flex items-center gap-2">
+      <div className="mt-6 bg-surface border border-border-default rounded-2xl overflow-hidden flex flex-col">
+        <div className="p-4 border-b border-border-default bg-black/5 dark:bg-black/20">
+          <h2 className="font-display font-bold text-lg text-text-primary flex items-center gap-2">
             <svg className="w-5 h-5 text-indigo" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
             </svg>
@@ -114,12 +130,18 @@ export function RecentListingsSidebar() {
           </h2>
         </div>
         <div className="flex flex-col">
-          {["#Cinematography", "#IndieFilm", "#VFX", "#DirectorLife"].map((tag, i) => (
-            <div key={i} className="p-4 border-b border-white/5 last:border-0 hover:bg-white/5 cursor-pointer transition-colors">
-              <h3 className="font-bold text-sm text-white">{tag}</h3>
-              <p className="text-xs text-text-muted mt-0.5">{[42, 28, 56, 15][i]} posts</p>
-            </div>
-          ))}
+          {loadingTags ? (
+            <div className="p-4 text-center text-xs text-text-muted">Loading tags...</div>
+          ) : trendingTags.length === 0 ? (
+            <div className="p-4 text-center text-xs text-text-muted">No tags trending yet.</div>
+          ) : (
+            trendingTags.slice(0, 5).map((tag, i) => (
+              <Link href={`/discover/tags?tag=${tag.tag.replace('#', '')}`} key={i} className="block p-4 border-b border-border-default last:border-0 hover:bg-black/5 dark:hover:bg-white/5 cursor-pointer transition-colors group">
+                <h3 className="font-bold text-sm text-text-primary group-hover:text-amber transition-colors">{tag.tag}</h3>
+                <p className="text-xs text-text-muted mt-0.5">{tag.count} posts</p>
+              </Link>
+            ))
+          )}
         </div>
       </div>
     </div>

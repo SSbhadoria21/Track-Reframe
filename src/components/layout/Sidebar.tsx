@@ -322,10 +322,10 @@ export function Sidebar() {
       <div className="absolute right-0 top-0 bottom-0 w-2 film-strip-border border-0 border-l" />
 
       {/* Top: Logo */}
-      <div className="flex items-center gap-3 p-6">
+      <Link href="/" className="flex items-center gap-3 p-6 hover:opacity-80 transition-opacity">
         <ApertureIcon className="w-7 h-7 text-amber animate-slow-spin" />
         <span className="font-display text-xl font-bold tracking-wide">Track Reframe</span>
-      </div>
+      </Link>
 
       {/* Navigation */}
       <nav className="flex-1 overflow-y-auto py-4 scrollbar-hide">

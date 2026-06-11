@@ -53,7 +53,7 @@ function parseScreenplay(text: string): ParsedLine[] {
 function Toggle({ label, enabled, onChange }: { label: string; enabled: boolean; onChange: (v: boolean) => void }) {
   return (
     <label className="flex items-center justify-between cursor-pointer group py-2">
-      <span className="text-sm text-text-secondary group-hover:text-white transition-colors">{label}</span>
+      <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">{label}</span>
       <button type="button" onClick={() => onChange(!enabled)}
         className={`relative w-10 h-5 rounded-full transition-colors ${enabled ? "bg-amber" : "bg-white/10"}`}>
         <span className={`absolute top-0.5 left-0.5 w-4 h-4 rounded-full bg-white shadow transition-transform ${enabled ? "translate-x-5" : ""}`} />
@@ -79,8 +79,8 @@ function MetadataModal({ onSubmit, onSkip }: { onSubmit: (m: any) => void; onSki
     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
       <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }}
-        className="w-full max-w-lg bg-[#111118] border border-white/[0.08] rounded-2xl shadow-2xl overflow-hidden">
-        <div className="px-6 pt-6 pb-4 border-b border-white/[0.06]">
+        className="w-full max-w-lg bg-surface border border-border-default rounded-2xl shadow-2xl overflow-hidden">
+        <div className="px-6 pt-6 pb-4 border-b border-border-default">
           <div className="flex items-center gap-3 mb-1">
             <div className="w-10 h-10 rounded-xl bg-amber/10 flex items-center justify-center">
               <svg className="w-5 h-5 text-amber" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2">
@@ -101,14 +101,14 @@ function MetadataModal({ onSubmit, onSkip }: { onSubmit: (m: any) => void; onSki
               </label>
               <input value={(form as any)[f.key]} onChange={(e) => setForm({ ...form, [f.key]: e.target.value })}
                 placeholder={f.placeholder}
-                className="w-full h-10 bg-[#0A0A0F] border border-white/[0.08] rounded-lg px-3 text-sm text-white placeholder:text-text-muted/50 focus:outline-none focus:border-amber/60 transition-colors mt-1" />
+                className="w-full h-10 bg-background border border-border-default rounded-lg px-3 text-sm text-text-primary placeholder:text-text-muted/50 focus:outline-none focus:border-amber/60 transition-colors mt-1" />
             </div>
           ))}
         </div>
         <div className="px-6 pb-6 flex items-center justify-between">
-          <button onClick={onSkip} className="text-sm text-text-muted hover:text-white transition-colors">Skip for now</button>
+          <button onClick={onSkip} className="text-sm text-text-muted hover:text-text-primary transition-colors">Skip for now</button>
           <button onClick={() => onSubmit(form)}
-            className="px-6 py-2.5 rounded-xl bg-amber text-[#0A0A0F] font-bold text-sm hover:bg-amber-hover transition-colors">
+            className="px-6 py-2.5 rounded-xl bg-amber text-black font-bold text-sm hover:bg-amber-hover transition-colors">
             Continue to Format
           </button>
         </div>
@@ -163,7 +163,7 @@ function ActionBanner({ mode, onAction, loading, language, onLangChange }: {
           )}
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-xs font-medium text-white">
+          <p className="text-xs font-medium text-text-primary">
             {isConvert ? "This looks like a rough draft" : "AI can enhance your script"}
           </p>
           <p className="text-[10px] text-text-muted">
@@ -184,7 +184,7 @@ function ActionBanner({ mode, onAction, loading, language, onLangChange }: {
         <div className="flex items-center gap-2 pl-11">
           <span className="text-[10px] text-text-muted">Language:</span>
           <select value={language} onChange={(e) => onLangChange(e.target.value)}
-            className="bg-[#0A0A0F] border border-white/[0.08] rounded-md px-2 py-0.5 text-[10px] text-white focus:outline-none focus:border-amber/60">
+            className="bg-background border border-border-default rounded-md px-2 py-0.5 text-[10px] text-text-primary focus:outline-none focus:border-amber/60">
             {LANGUAGES.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
@@ -610,7 +610,7 @@ export default function ScriptFormatterPage() {
       </AnimatePresence>
 
       {/* Top Bar */}
-      <div className="flex items-center justify-between px-6 py-3 border-b border-white/[0.06] bg-surface/80 backdrop-blur shrink-0">
+      <div className="flex items-center justify-between px-6 py-3 border-b border-border-default bg-surface/80 backdrop-blur shrink-0">
         <div className="flex items-center gap-3">
           <FilmStripIcon className="w-5 h-5 text-amber" />
           <span className="font-display text-lg font-bold">Script Formatter</span>
@@ -618,7 +618,7 @@ export default function ScriptFormatterPage() {
         <div className="flex items-center gap-3">
           <span className="text-xs text-text-muted">{wordCount.toLocaleString()} words</span>
           <button onClick={handleExportPDF} disabled={!rawText.trim()}
-            className="px-4 py-2 rounded-lg bg-amber text-[#0A0A0F] font-bold text-sm hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-40 disabled:hover:scale-100">
+            className="px-4 py-2 rounded-lg bg-amber text-black font-bold text-sm hover:scale-[1.02] active:scale-95 transition-transform disabled:opacity-40 disabled:hover:scale-100">
             Export as PDF
           </button>
         </div>
@@ -626,11 +626,11 @@ export default function ScriptFormatterPage() {
 
       <div className="flex flex-1 min-h-0 overflow-hidden">
         {/* ─── LEFT PANEL ─── */}
-        <div className="w-full md:w-[45%] flex flex-col border-r border-white/[0.06] overflow-hidden">
+        <div className="w-full md:w-[45%] flex flex-col border-r border-border-default overflow-hidden">
           {/* Metadata Accordion */}
-          <div className="border-b border-white/[0.06] shrink-0">
+          <div className="border-b border-border-default shrink-0">
             <button onClick={() => setShowMeta(!showMeta)}
-              className="w-full flex items-center justify-between px-5 py-3 text-sm hover:bg-white/[0.02] transition-colors">
+              className="w-full flex items-center justify-between px-5 py-3 text-sm hover:bg-black/5 dark:hover:bg-white/[0.02] transition-colors">
               <div className="flex items-center gap-2 truncate min-w-0">
                 <span className="text-text-secondary truncate">
                   {meta.title || "Untitled Draft"} {meta.writer && `— ${meta.writer}`}
@@ -663,7 +663,7 @@ export default function ScriptFormatterPage() {
                         <label className="text-[10px] text-text-muted uppercase tracking-wider">{f.label}</label>
                         <input value={(meta as any)[f.key]}
                           onChange={(e) => setMeta({ ...meta, [f.key]: e.target.value })}
-                          className="w-full h-9 bg-[#0D0D12] border border-white/[0.08] rounded-md px-3 text-sm text-white focus:outline-none focus:border-amber transition-colors mt-1" />
+                          className="w-full h-9 bg-black/5 dark:bg-[#0D0D12] border border-border-default rounded-md px-3 text-sm text-text-primary focus:outline-none focus:border-amber transition-colors mt-1" />
                       </div>
                     ))}
                   </div>
@@ -673,12 +673,12 @@ export default function ScriptFormatterPage() {
           </div>
 
           {/* Input Method Selector Tabs */}
-          <div className="flex border-b border-white/[0.06] bg-[#0A0A0F]/60 shrink-0 select-none">
+          <div className="flex border-b border-border-default bg-background/60 shrink-0 select-none">
             <button 
               type="button"
               onClick={() => setInputMethod("type")}
               className={`flex-1 py-3 text-center text-xs font-bold uppercase tracking-wider relative transition-colors ${
-                inputMethod === "type" ? "text-amber" : "text-text-muted hover:text-white"
+                inputMethod === "type" ? "text-amber" : "text-text-muted hover:text-text-primary"
               }`}
             >
               ✎ Type / Paste
@@ -692,7 +692,7 @@ export default function ScriptFormatterPage() {
                 type="button"
                 onClick={() => setInputMethod("upload")}
                 className={`w-full py-3 text-center text-xs font-bold uppercase tracking-wider relative transition-colors ${
-                  inputMethod === "upload" ? "text-amber" : "text-text-muted hover:text-white"
+                  inputMethod === "upload" ? "text-amber" : "text-text-muted hover:text-text-primary"
                 }`}
               >
                 📷 Upload Handwritten
@@ -701,7 +701,7 @@ export default function ScriptFormatterPage() {
                 )}
               </button>
               {/* Tooltip */}
-              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-max hidden group-hover:block bg-[#1A1A25] border border-white/10 text-white text-[11px] py-1.5 px-3 rounded-md shadow-lg pointer-events-none z-50 transition-all">
+              <div className="absolute top-full left-1/2 -translate-x-1/2 mt-1 w-max hidden group-hover:block bg-elevated border border-border-default text-text-primary text-[11px] py-1.5 px-3 rounded-md shadow-lg pointer-events-none z-50 transition-all">
                 Upload a photo or scan of your handwritten script pages
               </div>
             </div>
@@ -714,7 +714,7 @@ export default function ScriptFormatterPage() {
                 <div 
                   className={`mx-5 mt-3 h-9 rounded-lg flex items-center justify-between px-4 text-xs font-semibold select-none shrink-0 ${
                     cleanBannerStyle === "amber" 
-                      ? "bg-amber text-[#0A0A0F]" 
+                      ? "bg-amber text-black" 
                       : "bg-[#22C55E] text-white"
                   }`}
                 >
@@ -749,11 +749,11 @@ export default function ScriptFormatterPage() {
                   readOnly={isCleaning}
                   placeholder={"Paste any script or story idea here…\n\nYou can paste:\n• A formatted screenplay\n• A rough story in plain paragraphs\n• Notes in any language (Hindi, Tamil, etc.)\n• A synopsis or treatment\n\nAI will convert it into proper screenplay format!"}
                   spellCheck={false}
-                  className={`w-full h-full bg-[#0D0D12] p-6 pl-14 font-mono text-[13px] text-text-secondary leading-[1.7] resize-none focus:outline-none overflow-y-auto scrollbar-hide ${textareaClass} ${
+                  className={`w-full h-full bg-surface p-6 pl-14 font-mono text-[13px] text-text-secondary leading-[1.7] resize-none focus:outline-none overflow-y-auto scrollbar-hide ${textareaClass} ${
                     isCleaning ? "cursor-not-allowed opacity-70" : ""
                   }`}
                 />
-                <div className="absolute left-0 top-0 w-10 h-full overflow-hidden pointer-events-none border-r border-white/5">
+                <div className="absolute left-0 top-0 w-10 h-full overflow-hidden pointer-events-none border-r border-border-default">
                   <div className="py-6 pr-2 text-right">
                     {rawText.split("\n").map((_, i) => (
                       <div key={i} className="text-[11px] text-text-muted/40 leading-[1.7] font-mono">{i + 1}</div>
@@ -780,7 +780,7 @@ export default function ScriptFormatterPage() {
                   onClick={() => dailyUploadsCount < 10 && fileInputRef.current?.click()}
                   className={`mx-5 mt-5 h-[220px] rounded-xl flex flex-col items-center justify-center gap-3 border-2 transition-all duration-150 select-none ${
                     dailyUploadsCount >= 10
-                      ? "border-white/10 bg-white/2 cursor-not-allowed opacity-50"
+                      ? "border-border-default bg-black/5 dark:bg-white/2 cursor-not-allowed opacity-50"
                       : dragOver 
                         ? "border-amber bg-amber/5 cursor-pointer" 
                         : "border-dashed border-amber/40 bg-amber/2 cursor-pointer hover:border-amber hover:bg-amber/3"
@@ -808,7 +808,7 @@ export default function ScriptFormatterPage() {
                     <circle cx="12" cy="13" r="4" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
                   
-                  <span className="text-sm font-bold text-white">Upload your handwritten script</span>
+                  <span className="text-sm font-bold text-text-primary">Upload your handwritten script</span>
                   <span className="text-xs text-text-muted">Photo, scan, or screenshot — any angle works</span>
                   
                   {/* Accepted formats pills */}
@@ -816,7 +816,7 @@ export default function ScriptFormatterPage() {
                     {["JPG", "PNG", "PDF", "HEIC", "WEBP"].map(fmt => (
                       <span 
                         key={fmt} 
-                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-white/5 border border-white/10 text-text-muted"
+                        className="px-2 py-0.5 rounded text-[10px] font-semibold bg-black/5 dark:bg-white/5 border border-border-default text-text-muted"
                       >
                         {fmt}
                       </span>
@@ -836,7 +836,7 @@ export default function ScriptFormatterPage() {
 
               {/* Arranging State (Reorder UI) */}
               {ocrState === "arranging" && (
-                <div className="mx-5 mt-5 p-5 bg-[#111118] border border-white/[0.08] rounded-xl flex flex-col gap-4">
+                <div className="mx-5 mt-5 p-5 bg-surface border border-border-default rounded-xl flex flex-col gap-4">
                   <span className="text-xs font-bold text-text-secondary">Arrange pages in order:</span>
                   
                   <div className="flex gap-3 overflow-x-auto py-2 scrollbar-hide">
@@ -847,12 +847,12 @@ export default function ScriptFormatterPage() {
                         onDragStart={() => handleDragStart(idx)}
                         onDragOver={(e) => handleDragOver(e, idx)}
                         onDragEnd={handleDragEnd}
-                        className="relative w-20 h-28 border border-white/10 rounded-lg overflow-hidden shrink-0 group cursor-grab active:cursor-grabbing select-none"
+                        className="relative w-20 h-28 border border-border-default rounded-lg overflow-hidden shrink-0 group cursor-grab active:cursor-grabbing select-none"
                       >
                         <img src={fileItem.preview} alt="" className="w-full h-full object-cover" />
                         
                         {/* Page number badge */}
-                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber text-[#0A0A0F] font-bold text-[10px]">
+                        <span className="absolute top-1.5 left-1.5 px-1.5 py-0.5 rounded bg-amber text-black font-bold text-[10px]">
                           {idx + 1}
                         </span>
                         
@@ -891,7 +891,7 @@ export default function ScriptFormatterPage() {
                     ))}
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                  <div className="flex items-center justify-between border-t border-border-default pt-3">
                     <button 
                       type="button"
                       onClick={() => dailyUploadsCount < 10 && fileInputRef.current?.click()}
@@ -913,14 +913,14 @@ export default function ScriptFormatterPage() {
                       <button 
                         type="button"
                         onClick={() => { setOcrState("idle"); setUploadedFiles([]); }}
-                        className="px-4 py-1.5 rounded-lg border border-white/10 text-text-secondary text-xs font-semibold hover:text-white"
+                        className="px-4 py-1.5 rounded-lg border border-border-default text-text-secondary text-xs font-semibold hover:text-text-primary"
                       >
                         Cancel
                       </button>
                       <button 
                         type="button"
                         onClick={startProcessing}
-                        className="px-4 py-1.5 rounded-lg bg-amber text-[#0A0A0F] text-xs font-bold hover:bg-amber-hover"
+                        className="px-4 py-1.5 rounded-lg bg-amber text-black text-xs font-bold hover:bg-amber-hover"
                       >
                         Process in this order →
                       </button>
@@ -931,7 +931,7 @@ export default function ScriptFormatterPage() {
 
               {/* Processing State */}
               {ocrState === "processing" && (
-                <div className="mx-5 mt-5 h-[220px] rounded-xl border border-white/[0.08] bg-[#111118] flex flex-col items-center justify-center gap-3">
+                <div className="mx-5 mt-5 h-[220px] rounded-xl border border-border-default bg-surface flex flex-col items-center justify-center gap-3">
                   {/* Spinning Film Reel */}
                   <svg className="w-12 h-12 text-amber animate-spin" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                     <circle cx="12" cy="12" r="10" />
@@ -943,11 +943,11 @@ export default function ScriptFormatterPage() {
                     <circle cx="17" cy="17" r="1.5" fill="currentColor" />
                   </svg>
 
-                  <span className="text-sm font-bold text-white">Reading your handwriting...</span>
+                  <span className="text-sm font-bold text-text-primary">Reading your handwriting...</span>
 
                   {/* Progress bar */}
                   <div className="w-full px-8 mt-1">
-                    <div className="w-full h-1 bg-white/8 rounded-full overflow-hidden">
+                    <div className="w-full h-1 bg-black/10 dark:bg-white/8 rounded-full overflow-hidden">
                       <div 
                         className={`h-full bg-amber transition-all duration-100 ${progressVal >= 85 ? "animate-pulse" : ""}`}
                         style={{ width: `${progressVal}%` }} 
@@ -970,7 +970,7 @@ export default function ScriptFormatterPage() {
                             ? "border-amber animate-pulse" 
                             : fileItem.status === "done" 
                             ? "border-[#22C55E]" 
-                            : "border-white/10"
+                            : "border-border-default"
                         }`}
                       >
                         <img src={fileItem.preview} alt="" className="w-full h-full object-cover" />
@@ -995,7 +995,7 @@ export default function ScriptFormatterPage() {
 
               {/* Success Card */}
               {ocrState === "success" && (
-                <div className="mx-5 mt-5 p-4 bg-[#111118] border border-white/[0.08] rounded-xl flex flex-col justify-center min-h-[120px] gap-2.5">
+                <div className="mx-5 mt-5 p-4 bg-surface border border-border-default rounded-xl flex flex-col justify-center min-h-[120px] gap-2.5">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-[#22C55E]/10 border border-[#22C55E]/30 flex items-center justify-center text-[#22C55E] shrink-0">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
@@ -1003,14 +1003,14 @@ export default function ScriptFormatterPage() {
                       </svg>
                     </div>
                     <div>
-                      <h5 className="font-bold text-sm text-white">Text extracted successfully</h5>
+                      <h5 className="font-bold text-sm text-text-primary">Text extracted successfully</h5>
                       <p className="text-xs text-text-muted">
                         {ocrWordCount} words extracted from {ocrPageCount} page(s)
                       </p>
                     </div>
                   </div>
 
-                  <div className="flex items-center justify-between border-t border-white/5 pt-3">
+                  <div className="flex items-center justify-between border-t border-border-default pt-3">
                     <div className="flex gap-2">
                       {uploadedFiles.map(fileItem => (
                         <div key={fileItem.id} className="relative w-8 h-10 rounded-md overflow-hidden border border-[#22C55E]">
@@ -1038,14 +1038,14 @@ export default function ScriptFormatterPage() {
 
               {/* Error State */}
               {ocrState === "error" && (
-                <div className="mx-5 mt-5 p-5 bg-[#111118] border border-white/[0.08] rounded-xl flex flex-col gap-4">
+                <div className="mx-5 mt-5 p-5 bg-surface border border-border-default rounded-xl flex flex-col gap-4">
                   <div className="flex items-center gap-3">
                     <div className="w-8 h-8 rounded-full bg-red-500/10 border border-red-500/30 flex items-center justify-center text-red-500 shrink-0">
                       <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                         <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                       </svg>
                     </div>
-                    <h5 className="font-bold text-sm text-white">Couldn't read this image clearly</h5>
+                    <h5 className="font-bold text-sm text-text-primary">Couldn't read this image clearly</h5>
                   </div>
 
                   {ocrReason && (
@@ -1060,7 +1060,7 @@ export default function ScriptFormatterPage() {
                         setUploadedFiles([]);
                         setTimeout(() => fileInputRef.current?.click(), 100);
                       }}
-                      className="flex-1 py-2 rounded-lg bg-amber text-[#0A0A0F] text-xs font-bold hover:bg-amber-hover transition-colors"
+                      className="flex-1 py-2 rounded-lg bg-amber text-black text-xs font-bold hover:bg-amber-hover transition-colors"
                     >
                       Try Again
                     </button>
@@ -1071,15 +1071,15 @@ export default function ScriptFormatterPage() {
                         setUploadedFiles([]);
                         setInputMethod("type");
                       }}
-                      className="flex-1 py-2 rounded-lg border border-white/10 text-white text-xs font-bold hover:bg-white/5 transition-colors"
+                      className="flex-1 py-2 rounded-lg border border-border-default text-text-primary text-xs font-bold hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
                     >
                       Type Manually
                     </button>
                   </div>
 
                   {/* Help Tip */}
-                  <div className="bg-[#0A0A0F]/50 rounded-lg p-3 border border-white/5 space-y-1.5 select-none">
-                    <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                  <div className="bg-background/50 rounded-lg p-3 border border-border-default space-y-1.5 select-none">
+                    <p className="text-xs font-bold text-text-primary flex items-center gap-1.5">
                       <span>💡</span> Tips for better results:
                     </p>
                     <ul className="text-[10px] text-text-muted space-y-1 pl-4 list-disc">
@@ -1095,7 +1095,7 @@ export default function ScriptFormatterPage() {
           )}
 
           {/* Formatting Options */}
-          <div className="border-t border-white/[0.06] px-5 py-4 shrink-0">
+          <div className="border-t border-border-default px-5 py-4 shrink-0">
             <h4 className="text-xs font-bold uppercase tracking-widest text-text-muted mb-3">Formatting Options</h4>
             <Toggle label="Title Page" enabled={opts.titlePage} onChange={(v) => setOpts({ ...opts, titlePage: v })} />
             <Toggle label="Page Numbers" enabled={opts.pageNumbers} onChange={(v) => setOpts({ ...opts, pageNumbers: v })} />
@@ -1103,18 +1103,18 @@ export default function ScriptFormatterPage() {
             <Toggle label="Watermark" enabled={opts.watermark} onChange={(v) => setOpts({ ...opts, watermark: v })} />
             {opts.watermark && (
               <input value={opts.watermarkText} onChange={(e) => setOpts({ ...opts, watermarkText: e.target.value })}
-                className="w-full h-8 bg-[#0D0D12] border border-white/[0.08] rounded-md px-3 text-xs text-white focus:outline-none focus:border-amber mt-1"
+                className="w-full h-8 bg-black/5 dark:bg-[#0D0D12] border border-border-default rounded-md px-3 text-xs text-text-primary focus:outline-none focus:border-amber mt-1"
                 placeholder="DRAFT" />
             )}
           </div>
         </div>
 
         {/* ─── RIGHT PANEL — LIVE PREVIEW ─── */}
-        <div className="hidden md:flex flex-1 flex-col bg-[#0A0A0F] overflow-y-auto scrollbar-hide items-center py-8 px-4">
+        <div className="hidden md:flex flex-1 flex-col bg-background overflow-y-auto scrollbar-hide items-center py-8 px-4">
           {!rawText.trim() ? (
             <div className="flex-1 flex items-center justify-center">
               <div className="text-center">
-                <div className="w-16 h-16 rounded-2xl bg-white/[0.03] border border-white/[0.06] flex items-center justify-center mx-auto mb-4">
+                <div className="w-16 h-16 rounded-2xl bg-surface border border-border-default flex items-center justify-center mx-auto mb-4">
                   <FilmStripIcon className="w-8 h-8 text-text-muted/30" />
                 </div>
                 <p className="text-text-muted text-sm">Paste a script to see the formatted preview</p>

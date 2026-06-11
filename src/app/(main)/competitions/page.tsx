@@ -175,11 +175,11 @@ export default function CompetitionsPage() {
   };
 
   return (
-    <div className="flex-1 h-screen overflow-y-auto scrollbar-hide bg-[#0A0A0F]">
+    <div className="flex-1 h-screen overflow-y-auto scrollbar-hide bg-background">
       {/* Hero Banner */}
-      <section className="relative w-full min-h-[500px] flex items-center justify-center overflow-hidden bg-[#0D0D12] border-b border-white/5">
+      <section className="relative w-full min-h-[500px] flex items-center justify-center overflow-hidden bg-surface border-b border-border-default">
         <div className="absolute inset-0 z-0 opacity-20">
-            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-[#0A0A0F]" />
+            <div className="absolute inset-0 bg-gradient-to-b from-transparent to-background" />
         </div>
 
         <div className="relative z-10 max-w-7xl mx-auto px-6 py-20 text-center flex flex-col items-center">
@@ -196,17 +196,17 @@ export default function CompetitionsPage() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
-            className="font-display text-5xl md:text-7xl font-bold text-white mb-8 tracking-tighter"
+            className="font-display text-5xl md:text-7xl font-bold text-text-primary mb-8 tracking-tighter"
           >
             {activeComp?.title || "Next Challenge Starting Soon"}
           </motion.h1>
 
           {activeComp ? (
             <>
-              <div className="inline-block p-1 bg-white/5 backdrop-blur-md rounded-lg mb-10 border border-white/10">
+              <div className="inline-block p-1 bg-black/5 dark:bg-white/5 backdrop-blur-md rounded-lg mb-10 border border-border-default">
                 <div className="px-8 py-3 flex flex-col items-center">
                     <span className="text-text-muted text-[10px] font-bold uppercase tracking-widest mb-1">Current Theme</span>
-                    <h2 className="text-2xl md:text-3xl font-display text-white relative">
+                    <h2 className="text-2xl md:text-3xl font-display text-text-primary relative">
                         {activeComp.theme}
                         <div className="absolute -bottom-2 left-0 right-0 h-1 bg-amber rounded-full" />
                     </h2>
@@ -214,23 +214,23 @@ export default function CompetitionsPage() {
               </div>
 
               <div className="flex flex-wrap items-center justify-center gap-4 mb-12 mt-10">
-                <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-border-default">
                     <div className="w-10 h-10 rounded-full bg-amber/20 flex items-center justify-center">
                         <TrophyIcon className="w-5 h-5 text-amber" />
                     </div>
                     <div className="text-left">
                         <p className="text-[10px] font-bold text-amber uppercase tracking-wider">Prize</p>
-                        <p className="text-sm font-bold text-white">{activeComp.prize_description || `${activeComp.prize_coins} Coins + Badge`}</p>
+                        <p className="text-sm font-bold text-text-primary">{activeComp.prize_description || `${activeComp.prize_coins} Coins + Badge`}</p>
                     </div>
                 </div>
 
-                <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-white/5 border border-white/10">
+                <div className="flex items-center gap-3 px-6 py-3 rounded-2xl bg-black/5 dark:bg-white/5 border border-border-default">
                     <div className="w-10 h-10 rounded-full bg-blue-500/20 flex items-center justify-center">
                         <FilmReelIcon className="w-5 h-5 text-blue-400" />
                     </div>
                     <div className="text-left">
                         <p className="text-[10px] font-bold text-blue-400 uppercase tracking-wider">Submissions</p>
-                        <p className="text-sm font-bold text-white">
+                        <p className="text-sm font-bold text-text-primary">
                             <CountUp value={activeComp.submission_count || 0} /> Films
                         </p>
                     </div>
@@ -251,10 +251,10 @@ export default function CompetitionsPage() {
             <motion.div 
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="p-10 rounded-[40px] bg-white/5 border border-white/10 backdrop-blur-md mt-10"
+                className="p-10 rounded-[40px] bg-black/5 dark:bg-white/5 border border-border-default backdrop-blur-md mt-10"
             >
                 <TrophyIcon className="w-12 h-12 text-amber mx-auto mb-4 opacity-20" />
-                <h2 className="text-2xl font-display text-white mb-2">No Active Challenge</h2>
+                <h2 className="text-2xl font-display text-text-primary mb-2">No Active Challenge</h2>
                 <p className="text-text-muted text-sm max-w-sm mx-auto">Check back later or view past winners in the tabs below.</p>
             </motion.div>
           )}
@@ -269,14 +269,14 @@ export default function CompetitionsPage() {
             <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                className="p-8 rounded-[40px] bg-[#12121A] border-2 border-amber/30 shadow-2xl shadow-amber/10 flex flex-wrap items-center justify-between gap-6"
+                className="p-8 rounded-[40px] bg-elevated border-2 border-amber/30 shadow-2xl shadow-amber/10 flex flex-wrap items-center justify-between gap-6"
             >
                 <div className="flex items-center gap-6">
                     <div className="w-16 h-16 rounded-3xl bg-amber flex items-center justify-center shadow-lg shadow-amber/20">
                         <ShieldCheckIcon className="w-8 h-8 text-black" />
                     </div>
                     <div>
-                        <h3 className="text-xl font-bold text-white uppercase tracking-tighter">Host Management Hub</h3>
+                        <h3 className="text-xl font-bold text-text-primary uppercase tracking-tighter">Host Management Hub</h3>
                         <p className="text-xs text-amber font-bold uppercase tracking-widest mt-1">Status: {activeComp.status.replace('_', ' ')}</p>
                     </div>
                 </div>
@@ -316,7 +316,7 @@ export default function CompetitionsPage() {
                             setEditingComp(activeComp);
                             setShowCreateModal(true);
                         }}
-                        className="px-8 py-4 rounded-2xl bg-white/5 border border-white/10 text-white font-bold uppercase tracking-widest text-xs hover:bg-white/10 transition-all"
+                        className="px-8 py-4 rounded-2xl bg-black/5 dark:bg-white/5 border border-border-default text-text-primary font-bold uppercase tracking-widest text-xs hover:bg-black/10 dark:hover:bg-white/10 transition-all"
                     >
                         Edit Challenge
                     </button>
@@ -335,7 +335,7 @@ export default function CompetitionsPage() {
 
 
       {/* Tabs */}
-      <div className="sticky top-0 z-40 bg-[#0A0A0F]/80 backdrop-blur-xl border-b border-white/5">
+      <div className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-border-default">
         <div className="max-w-7xl mx-auto px-6 flex items-center justify-between h-16">
             <div className="flex items-center" suppressHydrationWarning>
                 {TABS.map((tab) => {
@@ -348,7 +348,7 @@ export default function CompetitionsPage() {
                       suppressHydrationWarning
                       className={`relative h-16 px-6 text-xs font-bold uppercase tracking-[0.2em] transition-all ${
 
-                        isActive ? "text-amber" : "text-text-muted hover:text-white"
+                        isActive ? "text-amber" : "text-text-muted hover:text-text-primary"
                       }`}
                     >
                       {tab}
@@ -369,7 +369,7 @@ export default function CompetitionsPage() {
           {user?.email === 'trackreframe@gmail.com' && (
             <button 
               onClick={() => setShowCreateModal(true)}
-              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs font-bold uppercase tracking-wider hover:bg-white/10 transition-all"
+              className="flex items-center gap-2 px-4 py-2 rounded-lg bg-black/5 dark:bg-white/5 border border-border-default text-xs font-bold uppercase tracking-wider hover:bg-black/10 dark:hover:bg-white/10 transition-all"
             >
               <PlusIcon className="w-4 h-4" /> Create Challenge
             </button>
@@ -391,10 +391,10 @@ export default function CompetitionsPage() {
             >
               <div className="lg:col-span-2 space-y-12">
                 <section>
-                    <h3 className="text-2xl font-display font-bold text-white mb-6 flex items-center gap-3">
+                    <h3 className="text-2xl font-display font-bold text-text-primary mb-6 flex items-center gap-3">
                         <ClockIcon className="w-6 h-6 text-amber" /> The Brief
                     </h3>
-                    <div className="p-8 rounded-3xl bg-surface border border-white/5 space-y-6">
+                    <div className="p-8 rounded-3xl bg-surface border border-border-default space-y-6">
                         <p className="text-lg text-text-secondary leading-relaxed">
                             {activeComp?.description}
                         </p>
@@ -420,8 +420,8 @@ export default function CompetitionsPage() {
               </div>
 
               <div className="space-y-8">
-                 <div className="p-8 rounded-3xl bg-surface border border-white/5 space-y-6">
-                    <h3 className="text-sm font-bold text-white uppercase tracking-widest">Judging Criteria</h3>
+                 <div className="p-8 rounded-3xl bg-surface border border-border-default space-y-6">
+                    <h3 className="text-sm font-bold text-text-primary uppercase tracking-widest">Judging Criteria</h3>
                     <div className="space-y-6">
                         <Criterion label="Story" percentage={25} />
                         <Criterion label="Direction" percentage={25} />
@@ -437,7 +437,7 @@ export default function CompetitionsPage() {
                         {hasMounted ? (
                           Object.entries(timeLeft).map(([label, value]) => (
                             <div key={label} className="flex flex-col items-center">
-                              <div className="w-14 h-16 bg-[#1A1A25] border border-white/10 rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-2xl">
+                              <div className="w-14 h-16 bg-black/5 dark:bg-[#1A1A25] border border-border-default rounded-2xl flex items-center justify-center relative overflow-hidden group shadow-2xl">
                                 <motion.span 
                                   key={value}
                                   initial={{ y: 20, opacity: 0 }}
@@ -469,8 +469,8 @@ export default function CompetitionsPage() {
 
           {activeTab === "current" && !activeComp && (
             <motion.div key="empty-current" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-32 text-center space-y-4">
-                <FilmReelIcon className="w-16 h-16 text-white/5 mx-auto" />
-                <h3 className="text-xl font-bold text-white">The stage is empty...</h3>
+                <FilmReelIcon className="w-16 h-16 text-black/5 dark:text-white/5 mx-auto" />
+                <h3 className="text-xl font-bold text-text-primary">The stage is empty...</h3>
                 <p className="text-text-muted">Start a new challenge or explore the history tabs.</p>
             </motion.div>
           )}
@@ -478,7 +478,7 @@ export default function CompetitionsPage() {
 
           {activeTab === "my" && (
             <motion.div key="my" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                <h2 className="text-3xl font-display font-bold text-white">Challenges You Hosted</h2>
+                <h2 className="text-3xl font-display font-bold text-text-primary">Challenges You Hosted</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {competitions.filter(() => user?.email === 'trackreframe@gmail.com').map(comp => (
                         <CompetitionCard key={comp.id} comp={comp} onSelect={() => { setActiveComp(comp); setActiveTab("current"); }} />
@@ -492,7 +492,7 @@ export default function CompetitionsPage() {
 
           {activeTab === "applied" && (
             <motion.div key="applied" initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="space-y-8">
-                <h2 className="text-3xl font-display font-bold text-white">Challenges You Joined</h2>
+                <h2 className="text-3xl font-display font-bold text-text-primary">Challenges You Joined</h2>
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                     {competitions.filter(c => appliedComps.includes(c.id)).map(comp => (
                         <CompetitionCard key={comp.id} comp={comp} onSelect={() => { setActiveComp(comp); setActiveTab("current"); }} />
@@ -538,7 +538,7 @@ export default function CompetitionsPage() {
                         </div>
                         <div className="text-center md:text-left space-y-4">
                             <div className="px-4 py-1 rounded-full bg-amber text-black text-[10px] font-black uppercase tracking-widest inline-block">Most Decorated Creator</div>
-                            <h2 className="text-4xl font-display font-bold text-white">The Visionary</h2>
+                            <h2 className="text-4xl font-display font-bold text-text-primary">The Visionary</h2>
                             <p className="text-text-muted max-w-md">3 Wins • 12 Qualifications • Legendary Hall of Famer</p>
                         </div>
                     </div>
@@ -576,25 +576,25 @@ function CompetitionCard({ comp, onSelect }: { comp: any, onSelect: () => void }
         <motion.div 
             whileHover={{ y: -5 }}
             onClick={onSelect}
-            className="group cursor-pointer p-6 rounded-3xl bg-surface border border-white/5 hover:border-amber/30 transition-all space-y-4"
+            className="group cursor-pointer p-6 rounded-3xl bg-surface border border-border-default hover:border-amber/30 transition-all space-y-4"
         >
-            <div className="aspect-video rounded-2xl bg-black/40 border border-white/5 overflow-hidden relative">
+            <div className="aspect-video rounded-2xl bg-black/10 dark:bg-black/40 border border-border-default overflow-hidden relative">
                 <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" />
                 <div className="absolute bottom-4 left-4 right-4">
                     <span className="px-2 py-1 rounded bg-amber text-black text-[8px] font-black uppercase tracking-widest">{comp.theme}</span>
                 </div>
             </div>
             <div className="space-y-1">
-                <h4 className="text-lg font-bold text-white group-hover:text-amber transition-colors line-clamp-1">{comp.title}</h4>
+                <h4 className="text-lg font-bold text-text-primary group-hover:text-amber transition-colors line-clamp-1">{comp.title}</h4>
                 <p className="text-[10px] text-text-muted font-bold uppercase tracking-widest">
                     {comp.status === 'round1_open' ? 'Ends ' : 'Started '}
                     {formatDistanceToNow(new Date(comp.round1_end), { addSuffix: true })}
                 </p>
             </div>
-            <div className="flex items-center justify-between pt-4 border-t border-white/5">
+            <div className="flex items-center justify-between pt-4 border-t border-border-default">
                 <div className="flex items-center gap-2">
                     <TrophyIcon className="w-3 h-3 text-amber" />
-                    <span className="text-xs text-white font-bold">{comp.prize_coins} Coins</span>
+                    <span className="text-xs text-text-primary font-bold">{comp.prize_coins} Coins</span>
                 </div>
                 <div className="flex items-center gap-2">
                     <UsersIcon className="w-3 h-3 text-blue-400" />
@@ -610,10 +610,10 @@ function Criterion({ label, percentage }: { label: string, percentage: number })
     return (
         <div className="space-y-2">
             <div className="flex justify-between text-xs font-bold uppercase tracking-wider">
-                <span className="text-white">{label}</span>
+                <span className="text-text-primary">{label}</span>
                 <span className="text-amber">{percentage}%</span>
             </div>
-            <div className="h-1.5 bg-black/40 rounded-full overflow-hidden">
+            <div className="h-1.5 bg-black/10 dark:bg-black/40 rounded-full overflow-hidden">
                 <div className="h-full bg-amber rounded-full" style={{ width: `${percentage}%` }} />
             </div>
         </div>

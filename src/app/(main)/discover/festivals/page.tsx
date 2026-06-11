@@ -123,9 +123,9 @@ export default function DiscoverFestivalsPage() {
   return (
     <div className="flex-1 flex flex-col md:flex-row min-h-screen relative">
       {/* Left Filters Sidebar */}
-      <aside className="w-full md:w-[280px] shrink-0 bg-[#111118] border-r border-white/5 p-6 space-y-6 md:sticky md:top-0 md:h-screen overflow-y-auto">
-        <div className="flex justify-between items-center pb-3 border-b border-white/5">
-          <h3 className="text-xs font-mono uppercase tracking-[0.2em] text-white">Filters</h3>
+      <aside className="w-full md:w-[280px] shrink-0 bg-surface border-r border-border-default p-6 space-y-6 md:sticky md:top-0 md:h-screen overflow-y-auto">
+        <div className="flex justify-between items-center pb-3 border-b border-border-default">
+          <h3 className="text-xs font-mono uppercase tracking-[0.2em] text-text-primary">Filters</h3>
           <button
             onClick={handleClearFilters}
             className="text-[10px] text-amber font-bold hover:underline cursor-pointer"
@@ -137,13 +137,13 @@ export default function DiscoverFestivalsPage() {
         {/* Region Selector */}
         <div className="space-y-2">
           <span className="text-[10px] text-text-muted font-mono uppercase block">Region</span>
-          <div className="flex bg-[#0d0d12] rounded-lg p-1 border border-white/5">
+          <div className="flex bg-black/5 dark:bg-[#0d0d12] rounded-lg p-1 border border-border-default">
             {["India", "International", "Both"].map((r) => (
               <button
                 key={r}
                 onClick={() => setRegion(r)}
                 className={`flex-1 py-1.5 text-[10px] font-bold rounded-md transition-colors cursor-pointer ${
-                  region === r ? "bg-amber text-[#0a0a0f]" : "text-text-muted hover:text-white"
+                  region === r ? "bg-amber text-black" : "text-text-muted hover:text-text-primary"
                 }`}
               >
                 {r}
@@ -227,7 +227,7 @@ export default function DiscoverFestivalsPage() {
               step="100"
               value={maxFee}
               onChange={(e) => setMaxFee(parseInt(e.target.value))}
-              className="w-full accent-amber bg-white/5 rounded-lg appearance-none h-1 cursor-pointer"
+              className="w-full accent-amber bg-black/5 dark:bg-white/5 rounded-lg appearance-none h-1 cursor-pointer"
             />
           )}
         </div>
@@ -247,8 +247,8 @@ export default function DiscoverFestivalsPage() {
                 onClick={() => setDeadlineRange(d.val)}
                 className={`py-1.5 px-2 rounded-md text-[9px] font-bold border transition-all cursor-pointer ${
                   deadlineRange === d.val
-                    ? "bg-amber text-[#0a0a0f] border-amber"
-                    : "bg-[#0d0d12] border-white/5 text-text-muted hover:border-white/10"
+                    ? "bg-amber text-black border-amber"
+                    : "bg-black/5 dark:bg-[#0d0d12] border-border-default text-text-muted hover:border-border-default"
                 }`}
               >
                 {d.label}
@@ -273,8 +273,8 @@ export default function DiscoverFestivalsPage() {
                   }
                   className={`py-2 px-3 rounded-lg text-[10px] font-bold border text-left transition-all flex items-center justify-between cursor-pointer ${
                     checked
-                      ? "bg-amber text-[#0a0a0f] border-amber"
-                      : "bg-[#0d0d12] border-white/5 text-text-muted hover:border-white/10"
+                      ? "bg-amber text-black border-amber"
+                      : "bg-black/5 dark:bg-[#0d0d12] border-border-default text-text-muted hover:border-border-default"
                   }`}
                 >
                   <span>{level}</span>
@@ -291,7 +291,7 @@ export default function DiscoverFestivalsPage() {
           <select
             value={language}
             onChange={(e) => setLanguage(e.target.value)}
-            className="w-full bg-[#0d0d12] border border-white/5 rounded-lg px-3 py-2 text-xs text-white focus:border-amber/50 outline-none cursor-pointer"
+            className="w-full bg-black/5 dark:bg-[#0d0d12] border border-border-default rounded-lg px-3 py-2 text-xs text-text-primary focus:border-amber/50 outline-none cursor-pointer"
           >
             <option value="Any">Any Language</option>
             {LANGUAGES.map((l) => (
@@ -310,7 +310,7 @@ export default function DiscoverFestivalsPage() {
           <div className="space-y-1">
             <div className="flex items-center gap-3">
               <span className="text-2xl">🏆</span>
-              <h1 className="font-display text-3xl md:text-[38px] font-bold text-white tracking-tight">
+              <h1 className="font-display text-3xl md:text-[38px] font-bold text-text-primary tracking-tight">
                 Festival Intelligence
               </h1>
             </div>
@@ -320,11 +320,11 @@ export default function DiscoverFestivalsPage() {
           </div>
 
           {/* View Toggles */}
-          <div className="flex bg-[#111118] border border-white/5 rounded-lg p-1 self-start sm:self-auto">
+          <div className="flex bg-black/5 dark:bg-[#111118] border border-border-default rounded-lg p-1 self-start sm:self-auto">
             <button
               onClick={() => setActiveView("grid")}
               className={`px-4 py-2 text-xs font-bold rounded-md transition-colors cursor-pointer ${
-                activeView === "grid" ? "bg-amber text-[#0a0a0f]" : "text-text-secondary hover:text-white"
+                activeView === "grid" ? "bg-amber text-black" : "text-text-secondary hover:text-text-primary"
               }`}
             >
               Discover
@@ -332,7 +332,7 @@ export default function DiscoverFestivalsPage() {
             <button
               onClick={() => setActiveView("tracker")}
               className={`px-4 py-2 text-xs font-bold rounded-md transition-colors cursor-pointer ${
-                activeView === "tracker" ? "bg-amber text-[#0a0a0f]" : "text-text-secondary hover:text-white"
+                activeView === "tracker" ? "bg-amber text-black" : "text-text-secondary hover:text-text-primary"
               }`}
             >
               My Tracker
@@ -341,8 +341,8 @@ export default function DiscoverFestivalsPage() {
         </div>
 
         {/* Stats bar */}
-        <div className="flex items-center gap-3 text-xs text-text-muted border-y border-white/5 py-3 select-none flex-wrap">
-          <span className="font-semibold text-white">340+ Festivals</span>
+        <div className="flex items-center gap-3 text-xs text-text-muted border-y border-border-default py-3 select-none flex-wrap">
+          <span className="font-semibold text-text-primary">340+ Festivals</span>
           <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
           <span>Updated Weekly</span>
           <span className="w-1.5 h-1.5 rounded-full bg-white/10" />
@@ -358,7 +358,7 @@ export default function DiscoverFestivalsPage() {
                 placeholder="Search festivals by name, city, or description..."
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                className="w-full h-11 bg-surface border border-white/5 rounded-xl pl-10 pr-4 text-xs text-white placeholder-text-muted focus:border-amber/50 outline-none"
+                className="w-full h-11 bg-surface border border-border-default rounded-xl pl-10 pr-4 text-xs text-text-primary placeholder-text-muted focus:border-amber/50 outline-none"
               />
               <span className="absolute left-3.5 top-3.5 text-text-muted text-sm">🔍</span>
             </div>
@@ -366,11 +366,11 @@ export default function DiscoverFestivalsPage() {
             {loading ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
                 {[...Array(6)].map((_, i) => (
-                  <div key={i} className="h-[290px] rounded-2xl bg-surface border border-white/5 animate-pulse" />
+                  <div key={i} className="h-[290px] rounded-2xl bg-surface border border-border-default animate-pulse" />
                 ))}
               </div>
             ) : festivals.length === 0 ? (
-              <div className="text-center py-20 bg-surface rounded-2xl border border-white/5 space-y-2">
+              <div className="text-center py-20 bg-surface rounded-2xl border border-border-default space-y-2">
                 <p className="text-sm text-text-secondary font-bold">No festivals matched your filters.</p>
                 <p className="text-xs text-text-muted max-w-sm mx-auto">
                   Try broadening your search or clicking "Clear all" in the sidebar to reset filters.
@@ -412,7 +412,7 @@ export default function DiscoverFestivalsPage() {
               animate={{ opacity: 0.6 }}
               exit={{ opacity: 0 }}
               onClick={() => setSelectedFestivalId(null)}
-              className="fixed inset-0 bg-[#0a0a0f] z-40 cursor-pointer"
+              className="fixed inset-0 bg-black z-40 cursor-pointer"
             />
             <FestivalDetailPanel
               festivalId={selectedFestivalId}

@@ -11,12 +11,13 @@ import {
   SettingsIcon, 
   UsersIcon,
   XIcon,
-  CheckCircleIcon
+  CheckCircleIcon,
+  AtSignIcon
 } from "lucide-react";
 import { createClient } from "@/lib/supabase/client";
 import { formatDistanceToNow } from "date-fns";
 
-type NotificationType = 'like' | 'comment' | 'follow' | 'competition' | 'system' | 'community';
+type NotificationType = 'like' | 'comment' | 'follow' | 'competition' | 'system' | 'community' | 'mention';
 
 interface Notification {
   id: string;
@@ -47,6 +48,7 @@ export function NotificationCenter({ isOpen, onClose }: { isOpen: boolean; onClo
     { id: 'follow', label: 'Follows', icon: UserPlusIcon },
     { id: 'community', label: 'Community', icon: UsersIcon },
     { id: 'competition', label: 'Competitions', icon: TrophyIcon },
+    { id: 'mention', label: 'Mentions', icon: AtSignIcon },
     { id: 'system', label: 'System', icon: SettingsIcon },
   ];
   useEffect(() => {
@@ -213,12 +215,14 @@ export function NotificationCenter({ isOpen, onClose }: { isOpen: boolean; onClo
                       notification.type === 'comment' ? 'bg-blue-500/20 text-blue-400' :
                       notification.type === 'follow' ? 'bg-purple-500/20 text-purple-400' :
                       notification.type === 'community' ? 'bg-amber/20 text-amber' :
+                      notification.type === 'mention' ? 'bg-indigo/20 text-indigo' :
                       'bg-white/10 text-text-muted'
                     }`}>
                       {notification.type === 'like' && <HeartIcon className="w-4 h-4 fill-current" />}
                       {notification.type === 'comment' && <MessageSquareIcon className="w-4 h-4" />}
                       {notification.type === 'follow' && <UserPlusIcon className="w-4 h-4" />}
                       {notification.type === 'community' && <UsersIcon className="w-4 h-4" />}
+                      {notification.type === 'mention' && <AtSignIcon className="w-4 h-4" />}
                       {notification.type === 'competition' && <TrophyIcon className="w-4 h-4" />}
                       {notification.type === 'system' && <SettingsIcon className="w-4 h-4" />}
                     </div>

@@ -18,13 +18,14 @@ const jetbrainsMono = JetBrains_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Track Reframe — Your Story. Your Vision. Your Frame.",
+  title: "Track Reframe",
   description: "The platform where indie filmmakers write, plan, connect, and compete.",
 };
 
 import { ThemeProvider } from "@/components/layout/ThemeProvider";
 import { AuthProvider } from "@/components/auth/AuthProvider";
 import { Toaster } from "react-hot-toast";
+import { CustomCursor } from "@/components/layout/CustomCursor";
 
 export default function RootLayout({
   children,
@@ -36,6 +37,7 @@ export default function RootLayout({
       <body className="antialiased min-h-screen bg-background text-text-primary" suppressHydrationWarning>
         <AuthProvider>
           <ThemeProvider>
+            <CustomCursor />
             {children}
             <Toaster 
               position="top-right"
