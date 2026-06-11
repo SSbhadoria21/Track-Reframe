@@ -11,8 +11,8 @@ import { ScreenplayExtension, ElementType, PageBreak } from '@/components/studio
 import { ArrowLeft, ChevronDown, Users, Share, Search, Settings, Download, X, Copy, Mail, MessageSquare, CheckCircle2, Send, Save, FileText } from 'lucide-react'
 import Link from 'next/link'
 import { useEffect, useState, useMemo, use, useRef } from 'react'
-import { createBrowserClient } from '@supabase/ssr'
-import { getSession } from 'next-auth/react'
+import { createClient } from '@/lib/supabase/client'
+import { getSession, useSession } from 'next-auth/react'
 import TitlePage from '@/components/studio/collab-editor/TitlePage'
 import './editor.css'
 
@@ -32,10 +32,11 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
     let saveTimeout: NodeJS.Timeout;
     const roomName = `track-reframe-collab-${resolvedParams.id}`;
 
-    const supabase = createBrowserClient(
-      process.env.NEXT_PUBLIC_SUPABASE_URL!,
-      process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-    );
+    const fetchSessionAndInit = async () => {
+      const session = await getSession();
+      const supabaseAccessToken = (session?.user as any)?.supabaseAccessToken;
+      
+      const supabase = createClient(supabaseAccessToken);
 
     const initDoc = async () => {
       let doc: Y.Doc;
@@ -98,10 +99,13 @@ export default function CollabEditorPage({ params }: { params: Promise<{ id: str
       doc.on('update', handleUpdate)
 
       setYdoc(doc)
-      setProvider(prov)
+      setProvider(prov);
     };
 
-    initDoc();
+      initDoc();
+    };
+
+    fetchSessionAndInit();
 
     return () => {
       clearTimeout(saveTimeout)
@@ -166,10 +170,9 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: SupabaseProvider
 
   const lastActiveTime = useRef<number>(Date.now());
   const editorRef = useRef<any>(null);
-  const supabase = useMemo(() => createBrowserClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
-  ), []);
+  const { data: session } = useSession();
+  const supabaseAccessToken = (session?.user as any)?.supabaseAccessToken;
+  const supabase = useMemo(() => createClient(supabaseAccessToken), [supabaseAccessToken]);
 
   const handleManualSave = async () => {
     setIsSaving(true);
@@ -262,7 +265,7 @@ function CollabEditor({ provider, ydoc, scriptId }: { provider: SupabaseProvider
         let pastWriting = 0;
         let pastThinking = 0;
         if (sessions) {
-           sessions.forEach(s => {
+           sessions.forEach((s: any) => {
              pastWriting += (s.writing_seconds || 0);
              pastThinking += (s.thinking_seconds || 0);
            });

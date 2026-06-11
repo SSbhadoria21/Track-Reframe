@@ -12,6 +12,16 @@ export async function POST(req: Request) {
     const file = formData.get("file") as File;
     if (!file) return NextResponse.json({ error: "No file provided" }, { status: 400 });
 
+    // Validate size (20MB limit)
+    if (file.size > 20 * 1024 * 1024) {
+      return NextResponse.json({ error: "File exceeds 20MB limit" }, { status: 400 });
+    }
+
+    // Validate type (images and videos)
+    if (!file.type.startsWith('image/') && !file.type.startsWith('video/')) {
+      return NextResponse.json({ error: "Invalid file type. Only images and videos are allowed." }, { status: 400 });
+    }
+
     const supabaseAdmin = createClient(
       process.env.SUPABASE_URL!,
       process.env.SUPABASE_SERVICE_ROLE_KEY!

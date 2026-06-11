@@ -30,9 +30,9 @@ export async function POST(req: Request) {
       if (error) throw error;
 
       // In a real app, send email/SMS here. For now, we'll return it or log it.
-      console.log(`OTP for ${user.email}: ${otpCode}`);
+      // OTP logic removed from logs
       
-      return NextResponse.json({ message: "OTP sent successfully", mock: otpCode });
+      return NextResponse.json({ message: "OTP sent successfully" });
     }
 
     if (action === "verify") {

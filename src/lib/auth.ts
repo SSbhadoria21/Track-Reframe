@@ -3,6 +3,7 @@ import GoogleProvider from "next-auth/providers/google";
 import CredentialsProvider from "next-auth/providers/credentials";
 import { createClient } from "@supabase/supabase-js";
 import { v4 as uuidv4 } from "uuid";
+import jwt from "jsonwebtoken";
 
 const supabaseAdmin = createClient(
   process.env.SUPABASE_URL!,
@@ -127,6 +128,7 @@ export const authOptions: NextAuthOptions = {
         (session.user as any).id = token.sub;
         (session.user as any).role = token.role;
         (session.user as any).username = token.username;
+        (session.user as any).supabaseAccessToken = token.supabaseAccessToken;
       }
       return session;
     },
@@ -159,6 +161,20 @@ export const authOptions: NextAuthOptions = {
           token.role = profile.role;
           token.username = profile.username;
         }
+      }
+
+      // Mint a custom Supabase JWT to securely pass to the client
+      if (process.env.SUPABASE_JWT_SECRET) {
+        token.supabaseAccessToken = jwt.sign(
+          {
+            aud: "authenticated",
+            exp: Math.floor(Date.now() / 1000) + 60 * 60 * 24, // 24 hours
+            sub: token.sub,
+            email: token.email,
+            role: "authenticated",
+          },
+          process.env.SUPABASE_JWT_SECRET
+        );
       }
       
       return token;

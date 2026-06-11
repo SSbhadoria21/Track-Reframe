@@ -51,7 +51,7 @@ export function ChatArea({ roomId }: { roomId: string }) {
   
   const scrollRef = useRef<HTMLDivElement>(null);
   const typingTimeoutRef = useRef<NodeJS.Timeout | null>(null);
-  const supabase = createClient();
+  const supabase = createClient((session?.user as any)?.supabaseAccessToken);
 
   useEffect(() => {
     fetchInitialData();
@@ -372,6 +372,13 @@ export function ChatArea({ roomId }: { roomId: string }) {
   const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file || !currentUserId) return;
+    
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert("File size must be less than 5MB");
+      return;
+    }
+
     const filePath = `${roomId}/${Math.random()}.${file.name.split('.').pop()}`;
 
     try {

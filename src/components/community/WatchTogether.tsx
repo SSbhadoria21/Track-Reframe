@@ -11,7 +11,7 @@ export function WatchTogether({ roomId }: { roomId: string }) {
   const [videoUrl, setVideoUrl] = useState("");
   const [currentSession, setCurrentSession] = useState<any>(null);
   const [loading, setLoading] = useState(false);
-  const supabase = createClient();
+  const supabase = createClient((session?.user as any)?.supabaseAccessToken);
 
   useEffect(() => {
     fetchSession();
