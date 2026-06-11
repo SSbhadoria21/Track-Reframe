@@ -14,6 +14,7 @@ import {
   SpotlightIcon
 } from "@/components/icons";
 import { ThemeToggle } from "@/components/layout/ThemeToggle";
+import { DeveloperModal } from "@/components/layout/DeveloperModal";
 
 /* ─── Animated Mouse Spotlight ─── */
 function SpotlightCursor() {
@@ -55,6 +56,7 @@ export default function LandingPage() {
   const y2 = useSpring(useTransform(scrollY, [0, 1000], [0, -150]), { stiffness: 50 });
   const { data: session, status } = useSession();
   const router = useRouter();
+  const [isDeveloperModalOpen, setIsDeveloperModalOpen] = useState(false);
 
   const handleProtectedAction = (path: string) => {
     if (status === "authenticated") {
@@ -312,26 +314,43 @@ export default function LandingPage() {
       </section>
 
       {/* ─── FOOTER ─── */}
-      <footer className="py-20 px-8 border-t border-border-default">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-12">
-          <div className="flex items-center gap-3">
-            <ClapperboardIcon className="w-8 h-8 text-amber" />
-            <span className="font-display text-xl font-bold tracking-tight">Track Reframe</span>
+      <footer className="py-20 px-8 border-t border-border-default relative z-10">
+        <div className="max-w-7xl mx-auto grid grid-cols-1 md:grid-cols-3 gap-12 items-center">
+          
+          <div className="flex flex-col gap-4">
+            <div className="flex items-center gap-3">
+              <ClapperboardIcon className="w-8 h-8 text-amber" />
+              <span className="font-display text-xl font-bold tracking-tight">Track Reframe</span>
+            </div>
+            <div className="flex gap-4 text-xs font-mono text-text-muted uppercase tracking-widest">
+              <span className="text-amber">© 2026</span>
+              <span>Made for Filmmakers</span>
+            </div>
           </div>
           
-          <div className="flex gap-8 text-xs font-mono text-text-muted uppercase tracking-widest">
-            <span className="text-amber">© 2026</span>
-            <span>Made for Filmmakers</span>
-            <span>v0.1</span>
+          <div className="flex justify-center gap-8 text-sm font-medium text-text-secondary">
+            <button onClick={() => handleProtectedAction('/studio')} className="hover:text-amber transition-colors">Studio</button>
+            <button onClick={() => handleProtectedAction('/feed')} className="hover:text-amber transition-colors">Feed</button>
+            <button onClick={() => handleProtectedAction('/community')} className="hover:text-amber transition-colors">Community</button>
+            <button onClick={() => handleProtectedAction('/competitions')} className="hover:text-amber transition-colors">Competitions</button>
           </div>
           
-          <div className="flex gap-4 text-text-primary">
-            <div className="w-8 h-8 rounded-full border border-border-default flex items-center justify-center hover:border-amber transition-colors">T</div>
-            <div className="w-8 h-8 rounded-full border border-border-default flex items-center justify-center hover:border-amber transition-colors">I</div>
-            <div className="w-8 h-8 rounded-full border border-border-default flex items-center justify-center hover:border-amber transition-colors">Y</div>
+          <div className="flex justify-end items-center gap-6">
+            <button 
+              onClick={() => setIsDeveloperModalOpen(true)}
+              className="px-6 py-2.5 rounded-full border border-amber/30 text-amber font-mono text-xs uppercase tracking-widest hover:bg-amber hover:text-black transition-all shadow-[0_0_15px_rgba(255,184,0,0.1)]"
+            >
+              Developer
+            </button>
           </div>
+
         </div>
       </footer>
+      
+      <DeveloperModal 
+        isOpen={isDeveloperModalOpen} 
+        onClose={() => setIsDeveloperModalOpen(false)} 
+      />
 
       {/* ─── Global Styles for Custom Animations ─── */}
       <style jsx global>{`
