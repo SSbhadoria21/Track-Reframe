@@ -38,6 +38,37 @@ function SpotlightCursor() {
   );
 }
 
+/* ─── Running Timecode ─── */
+function RunningTimecode() {
+  const [timecode, setTimecode] = useState("00:00:00:00");
+
+  useEffect(() => {
+    const startTime = Date.now();
+    let animationFrameId: number;
+
+    const updateTimer = () => {
+      const elapsed = Date.now() - startTime;
+      
+      const hours = Math.floor(elapsed / 3600000);
+      const minutes = Math.floor((elapsed % 3600000) / 60000);
+      const seconds = Math.floor((elapsed % 60000) / 1000);
+      const frames = Math.floor((elapsed % 1000) / (1000 / 24)); // 24 fps
+
+      setTimecode(
+        `${hours.toString().padStart(2, '0')}:${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}:${frames.toString().padStart(2, '0')}`
+      );
+      
+      animationFrameId = requestAnimationFrame(updateTimer);
+    };
+
+    animationFrameId = requestAnimationFrame(updateTimer);
+    
+    return () => cancelAnimationFrame(animationFrameId);
+  }, []);
+
+  return <span className="font-mono text-xs text-amber font-semibold w-[85px] inline-block text-right tracking-wider">{timecode}</span>;
+}
+
 /* ─── Components ─── */
 
 function SceneLabel({ number, title }: { number: string; title: string }) {
@@ -83,7 +114,7 @@ export default function LandingPage() {
         </div>
         <div className="flex items-center gap-6">
           <ThemeToggle />
-          <span className="font-mono text-xs text-amber animate-pulse">00:03:24:11</span>
+          <RunningTimecode />
           {status === "authenticated" ? (
             <Link href="/dashboard" className="flex items-center justify-center w-10 h-10 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 transition-all shadow-[0_0_15px_rgba(255,184,0,0.3)]">
               {session?.user?.name?.[0]?.toUpperCase() || "U"}
