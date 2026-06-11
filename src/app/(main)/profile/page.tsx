@@ -117,16 +117,18 @@ export default function ProfilePage() {
       <ProfileTabs userId={user.id} isOwner={true} />
 
       {/* Create Competition Button */}
-      <div className="fixed bottom-10 right-10 z-50">
-          <motion.button
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
-            onClick={() => setShowCreateModal(true)}
-            className="w-16 h-16 rounded-full bg-amber shadow-2xl shadow-amber/40 flex items-center justify-center text-black"
-          >
-            <TrophyIcon className="w-8 h-8 fill-black" />
-          </motion.button>
-      </div>
+      {user?.email === 'trackreframe@gmail.com' && (
+        <div className="fixed bottom-10 right-10 z-50 print:hidden">
+            <motion.button
+              whileHover={{ scale: 1.1 }}
+              whileTap={{ scale: 0.9 }}
+              onClick={() => setShowCreateModal(true)}
+              className="w-16 h-16 rounded-full bg-amber shadow-2xl shadow-amber/40 flex items-center justify-center text-black"
+            >
+              <TrophyIcon className="w-8 h-8 fill-black" />
+            </motion.button>
+        </div>
+      )}
 
       <CreateCompetitionModal 
         isOpen={showCreateModal} 
