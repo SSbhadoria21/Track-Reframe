@@ -152,7 +152,7 @@ export function TopBar() {
         if (statsRes.ok) {
            const data = await statsRes.json();
            followers = data.stats?.followers || 0;
-           films = data.stats?.posts || 0;
+           films = data.stats?.films || 0;
         }
       } catch (e) {}
       

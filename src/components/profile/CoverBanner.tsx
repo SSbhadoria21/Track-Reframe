@@ -51,12 +51,17 @@ export function CoverBanner({ coverUrl, userId, isOwner = true, onUpdate }: Cove
         body: JSON.stringify({ cover_url: publicUrl })
       });
 
-      if (res.ok && onUpdate) {
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update profile");
+      }
+
+      if (onUpdate) {
         onUpdate();
       }
-    } catch (error) {
+    } catch (error: any) {
       console.error("Error uploading cover:", error);
-      alert("Failed to upload cover image.");
+      alert(error.message || "Failed to upload cover image.");
     } finally {
       setIsUploading(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

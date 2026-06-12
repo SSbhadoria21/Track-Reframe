@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import { ChatIcon } from "@/components/icons";
 
 interface Conversation {
@@ -26,6 +26,19 @@ export default function MessagesPage() {
   const router = useRouter();
   const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [activeMenu, setActiveMenu] = useState<string | null>(null);
+
+  const handleChatAction = (e: React.MouseEvent, action: string, convId: string) => {
+    e.stopPropagation();
+    setActiveMenu(null);
+    if (action === "delete" && confirm("Delete this conversation?")) {
+      setConversations(prev => prev.filter(c => c.id !== convId));
+    } else if (action === "clear" && confirm("Clear this conversation?")) {
+      setConversations(prev => prev.map(c => c.id === convId ? { ...c, lastMessage: null } : c));
+    } else if (action === "archive") {
+      setConversations(prev => prev.filter(c => c.id !== convId));
+    }
+  };
 
   useEffect(() => {
     const fetchConversations = async () => {
@@ -79,7 +92,7 @@ export default function MessagesPage() {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: i * 0.05 }}
               onClick={() => router.push(`/messages/${c.otherUser?.username}`)}
-              className="bg-surface border border-white/5 rounded-xl p-4 hover:border-amber/30 hover:bg-white/5 transition-all cursor-pointer flex items-center gap-4 group"
+              className={`bg-surface border border-white/5 rounded-xl p-4 hover:border-amber/30 hover:bg-white/5 transition-all cursor-pointer flex items-center gap-4 group relative ${activeMenu === c.id ? 'z-50' : 'z-0'}`}
             >
               <div className="w-12 h-12 rounded-full bg-[#0d0d12] flex items-center justify-center text-white font-bold text-lg overflow-hidden border border-white/10 shrink-0">
                 {c.otherUser?.avatar_url ? (
@@ -89,7 +102,7 @@ export default function MessagesPage() {
                 )}
               </div>
               
-              <div className="flex-1 min-w-0">
+              <div className="flex-1 min-w-0 pr-8">
                 <div className="flex justify-between items-baseline mb-1">
                   <h3 className="font-bold text-sm text-white truncate pr-4 group-hover:text-amber transition-colors">
                     {c.otherUser?.display_name || c.otherUser?.username}
@@ -107,6 +120,31 @@ export default function MessagesPage() {
               {c.lastMessage && !c.lastMessage.is_read && c.lastMessage.sender_id === c.otherUser?.id && (
                 <div className="w-2.5 h-2.5 rounded-full bg-amber shrink-0 shadow-[0_0_8px_rgba(251,191,36,0.6)]" />
               )}
+
+              {/* Chat Options Button */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 opacity-0 group-hover:opacity-100 transition-opacity flex items-center">
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setActiveMenu(activeMenu === c.id ? null : c.id); }}
+                  className={`p-1.5 rounded-full hover:bg-white/10 text-text-muted hover:text-white transition-colors ${activeMenu === c.id ? 'opacity-100 bg-white/10 text-white' : ''}`}
+                >
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" /></svg>
+                </button>
+                
+                <AnimatePresence>
+                  {activeMenu === c.id && (
+                    <motion.div 
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      className="absolute right-8 top-0 w-36 bg-elevated border border-white/10 rounded-xl shadow-2xl overflow-hidden z-50 py-1 origin-top-right"
+                    >
+                      <button onClick={(e) => handleChatAction(e, "archive", c.id)} className="w-full text-left px-4 py-2 text-xs text-text-primary hover:bg-white/5 transition-colors">Archive</button>
+                      <button onClick={(e) => handleChatAction(e, "clear", c.id)} className="w-full text-left px-4 py-2 text-xs text-text-primary hover:bg-white/5 transition-colors">Clear Chat</button>
+                      <button onClick={(e) => handleChatAction(e, "delete", c.id)} className="w-full text-left px-4 py-2 text-xs text-error hover:bg-error/10 transition-colors">Delete Chat</button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             </motion.div>
           ))}
         </div>
