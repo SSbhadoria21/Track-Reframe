@@ -33,7 +33,7 @@ export async function GET(req: Request) {
       .from("users")
       .select("*")
       .eq("id", targetUserId)
-      .single();
+      .maybeSingle();
 
     if (!profile) return Response.json({ stats: { posts: 0, followers: 0, following: 0, films: 0, scripts: 0, coins: 0, badges: 0, saved: 0 } });
 

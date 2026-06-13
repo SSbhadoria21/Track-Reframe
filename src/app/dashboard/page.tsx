@@ -14,7 +14,7 @@ export default async function DashboardPage() {
   }
 
   const supabase = await createClient();
-  const { data: profile } = await supabase.from('users').select('id, roles, bio').eq('email', session.user.email).single();
+  const { data: profile } = await supabase.from('users').select('id, roles, bio').eq('email', session.user.email).maybeSingle();
   
   let activeProjects = 0;
   if (profile?.id) {

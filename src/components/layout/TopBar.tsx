@@ -191,7 +191,7 @@ export function TopBar() {
   }, [session]);
 
   return (
-    <header className="h-16 border-b border-border-default bg-surface/80 backdrop-blur-md flex items-center justify-between px-6 sticky top-0 z-40">
+    <header className="h-16 border-b border-border-default bg-surface/80 backdrop-blur-md flex items-center justify-between px-4 sm:px-6 sticky top-0 z-40 gap-2">
       <div className="flex-1 max-w-md">
         <div className="relative group">
           <SearchIcon className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-muted group-focus-within:text-amber transition-colors" />
@@ -247,14 +247,16 @@ export function TopBar() {
         </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 sm:gap-4 shrink-0">
         {/* Theme Toggle */}
-        <ThemeToggle />
+        <div className="hidden sm:block">
+          <ThemeToggle />
+        </div>
 
         {/* Coins */}
-        <div className="flex items-center gap-2 px-3 py-1.5 bg-amber/10 border border-amber/20 rounded-full">
+        <div className="flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 bg-amber/10 border border-amber/20 rounded-full">
           <CoinIcon className="w-4 h-4 text-amber" />
-          <span className="font-mono text-sm text-amber font-bold">{coins}</span>
+          <span className="font-mono text-xs sm:text-sm text-amber font-bold">{coins}</span>
         </div>
 
         {/* Notifications */}

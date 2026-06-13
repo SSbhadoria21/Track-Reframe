@@ -4,7 +4,7 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { useSession, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { motion, useScroll, useTransform, useSpring } from "framer-motion";
+import { motion, useScroll, useTransform, useSpring, AnimatePresence } from "framer-motion";
 import { 
   ClapperboardIcon, 
   ApertureIcon, 
@@ -89,6 +89,7 @@ export default function LandingPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
   const [isDeveloperModalOpen, setIsDeveloperModalOpen] = useState(false);
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   const handleProtectedAction = (path: string) => {
     if (status === "authenticated") {
@@ -103,17 +104,21 @@ export default function LandingPage() {
       <SpotlightCursor />
 
       {/* ─── Navigation ─── */}
-      <nav className="fixed top-0 left-0 right-0 z-50 h-20 bg-gradient-to-b from-background to-transparent px-8 flex items-center justify-between">
+      <nav className="fixed top-0 left-0 right-0 z-50 h-20 bg-gradient-to-b from-background to-background/80 backdrop-blur-md px-6 md:px-8 flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <ClapperboardIcon className="w-8 h-8 text-amber" />
-          <span className="font-display text-xl font-bold tracking-tight">Track Reframe</span>
+          <ClapperboardIcon className="w-6 h-6 md:w-8 md:h-8 text-amber" />
+          <span className="font-display text-lg md:text-xl font-bold tracking-tight">Track Reframe</span>
         </div>
+        
+        {/* Desktop Nav */}
         <div className="hidden md:flex items-center gap-12 text-sm font-medium text-text-muted">
           <button onClick={() => handleProtectedAction('/studio')} className="hover:text-text-primary transition-colors">Tools</button>
           <button onClick={() => handleProtectedAction('/community')} className="hover:text-text-primary transition-colors">Community</button>
           <button onClick={() => handleProtectedAction('/competitions')} className="hover:text-text-primary transition-colors">Voices</button>
         </div>
-        <div className="flex items-center gap-6">
+        
+        {/* Desktop Actions */}
+        <div className="hidden md:flex items-center gap-6">
           <ThemeToggle />
           <RunningTimecode />
           {status === "authenticated" ? (
@@ -136,7 +141,68 @@ export default function LandingPage() {
             </Link>
           )}
         </div>
+
+        {/* Mobile Hamburger */}
+        <div className="md:hidden flex items-center gap-4">
+          <ThemeToggle />
+          <button 
+            onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)} 
+            className="text-text-primary p-2 hover:bg-white/5 rounded-md transition-colors"
+          >
+            {isMobileMenuOpen ? (
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" /></svg>
+            ) : (
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2"><path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 12h16M4 18h16" /></svg>
+            )}
+          </button>
+        </div>
       </nav>
+
+      {/* Mobile Menu Overlay */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <motion.div 
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 top-20 z-40 bg-background/95 backdrop-blur-xl border-t border-border-default md:hidden flex flex-col p-6 overflow-y-auto"
+          >
+            <div className="flex flex-col gap-6 text-lg font-bold mb-8">
+              <button onClick={() => { setIsMobileMenuOpen(false); handleProtectedAction('/studio'); }} className="text-left py-2 border-b border-border-default/50 hover:text-amber transition-colors">Tools</button>
+              <button onClick={() => { setIsMobileMenuOpen(false); handleProtectedAction('/community'); }} className="text-left py-2 border-b border-border-default/50 hover:text-amber transition-colors">Community</button>
+              <button onClick={() => { setIsMobileMenuOpen(false); handleProtectedAction('/competitions'); }} className="text-left py-2 border-b border-border-default/50 hover:text-amber transition-colors">Voices</button>
+            </div>
+            
+            <div className="mt-auto pt-8 border-t border-border-default/50 flex flex-col gap-6">
+              <div className="flex justify-center">
+                <RunningTimecode />
+              </div>
+              
+              {status === "authenticated" ? (
+                <div className="flex flex-col gap-4">
+                  <Link href="/dashboard" className="flex items-center justify-center gap-3 w-full py-4 rounded-xl bg-amber/10 border border-amber/20 text-amber font-bold text-lg" title="Dashboard">
+                    <div className="w-8 h-8 rounded-full bg-amber text-black flex items-center justify-center font-bold text-sm">
+                      {session?.user?.name?.[0]?.toUpperCase() || "U"}
+                    </div>
+                    My Dashboard
+                  </Link>
+                  <button 
+                    onClick={() => signOut({ callbackUrl: "/" })} 
+                    className="w-full py-4 rounded-xl border border-red-500/30 text-red-500 bg-red-500/5 font-bold flex items-center justify-center gap-2"
+                  >
+                    Log Out
+                  </button>
+                </div>
+              ) : (
+                <Link href="/login" className="w-full py-4 flex items-center justify-center rounded-xl bg-amber text-black font-bold text-lg shadow-[0_0_20px_rgba(255,184,0,0.3)]">
+                  Continue with Google
+                </Link>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* ─── SCENE 001: HERO ─── */}
       <section className="relative min-h-screen flex items-center pt-20 px-8 overflow-hidden">
@@ -152,7 +218,7 @@ export default function LandingPage() {
           >
             <SceneLabel number="001" title="INT. FILM SET - NIGHT" />
             <motion.h1 
-              className="font-display text-6xl md:text-8xl lg:text-[100px] font-bold leading-[0.9] tracking-tight mb-8"
+              className="font-display text-5xl sm:text-6xl md:text-8xl lg:text-[100px] font-bold leading-[0.9] tracking-tight mb-8"
               initial={{ opacity: 0, y: 40 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.2, duration: 0.8 }}
@@ -168,17 +234,17 @@ export default function LandingPage() {
             >
               A cinematic home for indie filmmakers. Write with AI in the voice of your favorite director, plan every shot, build your crew, and submit films to monthly competitions.
             </motion.p>
-            <div className="flex flex-wrap gap-4">
+            <div className="flex flex-col sm:flex-row flex-wrap gap-4">
               {status === "authenticated" ? (
-                <Link href="/feed" className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
+                <Link href="/feed" className="px-8 py-4 text-center rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
                   Go to feed
                 </Link>
               ) : (
-                <Link href="/login" className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
+                <Link href="/login" className="px-8 py-4 text-center rounded-full bg-amber text-black font-bold text-lg hover:scale-105 active:scale-95 transition-all shadow-xl">
                   Get Started Now
                 </Link>
               )}
-              <button onClick={() => handleProtectedAction('/studio')} className="px-8 py-4 rounded-full border border-border-default text-text-primary font-bold text-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all">
+              <button onClick={() => handleProtectedAction('/studio')} className="px-8 py-4 text-center rounded-full border border-border-default text-text-primary font-bold text-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all">
                 Explore the toolkit
               </button>
             </div>
@@ -249,10 +315,10 @@ export default function LandingPage() {
               Find your DP. <br /> Build your crew. <br />
               <span className="text-amber italic serif font-normal">Make the film.</span>
             </h2>
-            <p className="text-text-secondary max-w-md mb-10">
+            <p className="text-text-secondary max-w-md mb-10 text-lg">
               Live chat rooms for writers, directors and cinematographers. Post a casting call, share BTS, or start a private room with an invite code.
             </p>
-            <button onClick={() => handleProtectedAction('/community')} className="px-8 py-4 rounded-full bg-amber text-black font-bold text-lg hover:bg-amber-hover transition-colors">
+            <button onClick={() => handleProtectedAction('/community')} className="px-8 py-4 rounded-full border border-border-default text-text-primary font-bold text-lg hover:bg-black/5 dark:hover:bg-white/5 transition-all w-full sm:w-auto">
               Browse rooms
             </button>
           </div>
