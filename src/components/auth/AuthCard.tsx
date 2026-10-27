@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { ApertureIcon } from "@/components/icons";
 import { createClient } from "@/lib/supabase/client";
 import { signIn } from "next-auth/react";
@@ -23,25 +23,76 @@ export function AuthCard({ initialView }: AuthCardProps) {
   const [displayName, setDisplayName] = useState("");
   const [username, setUsername] = useState("");
   const [role, setRole] = useState("Director");
+  const [resetSent, setResetSent] = useState(false);
   
   const router = useRouter();
+  const searchParams = useSearchParams();
   const supabase = createClient();
+
+  const handleForgotPassword = async () => {
+    const cleanEmail = email.trim().toLowerCase();
+    if (!cleanEmail) {
+      setError("Please enter your email address first, then click Forgot password.");
+      return;
+    }
+    setLoading(true);
+    setError(null);
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(cleanEmail, {
+        redirectTo: `${window.location.origin}/login`,
+      });
+      if (error) throw error;
+      setResetSent(true);
+    } catch (err: any) {
+      setError(err.message || "Failed to send reset email.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    const errorParam = searchParams.get("error");
+    if (errorParam) {
+      if (errorParam === "AccessDenied") {
+        setError("Access denied. Please check your account permissions or sign in with your email and password.");
+      } else if (errorParam === "OAuthAccountNotLinked") {
+        setError("An account already exists with this email address. Please sign in with your email and password.");
+      } else if (errorParam === "OAuthCallback" || errorParam === "OAuthSignin") {
+        setError("Could not complete Google Sign-in. Please try again.");
+      } else if (errorParam === "CredentialsSignin") {
+        setError("Invalid email or password.");
+      } else {
+        setError(errorParam);
+      }
+    }
+  }, [searchParams]);
 
   const handleAuth = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     setError(null);
 
+    const cleanEmail = email.trim().toLowerCase();
+
     try {
       if (isLogin) {
         const res = await signIn("credentials", {
           redirect: false,
-          email,
+          email: cleanEmail,
           password,
         });
 
         if (res?.error) {
-          throw new Error(res.error === "CredentialsSignin" ? "Invalid email or password." : res.error);
+          let msg = "Invalid email or password.";
+          if (res.error !== "CredentialsSignin" && res.error !== "{}" && res.error.length > 2) {
+            try {
+              const parsed = JSON.parse(res.error);
+              msg = parsed.message || parsed.error || msg;
+            } catch {
+              msg = res.error;
+            }
+          }
+          throw new Error(msg);
         }
         
         // On success, redirect to feed
@@ -49,7 +100,7 @@ export function AuthCard({ initialView }: AuthCardProps) {
         router.refresh();
       } else {
         const { data, error } = await supabase.auth.signUp({
-          email,
+          email: cleanEmail,
           password,
           options: {
             data: {
@@ -64,7 +115,7 @@ export function AuthCard({ initialView }: AuthCardProps) {
         // Auto-signin with NextAuth after signup
         const res = await signIn("credentials", {
           redirect: false,
-          email,
+          email: cleanEmail,
           password,
         });
 
@@ -201,6 +252,12 @@ export function AuthCard({ initialView }: AuthCardProps) {
                     {error}
                   </motion.div>
                 )}
+
+                {resetSent && isLogin && (
+                  <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }} className="p-3 rounded-xl bg-green-500/10 border border-green-500/20 text-green-400 text-sm text-center">
+                    Password reset link sent! Please check your email inbox.
+                  </motion.div>
+                )}
                 
                 <div>
                   <label className="block text-xs font-mono uppercase tracking-wider text-text-secondary mb-1.5 ml-1">Email</label>
@@ -231,7 +288,13 @@ export function AuthCard({ initialView }: AuthCardProps) {
                     </div>
                     <span className="text-sm text-text-secondary group-hover:text-text-primary transition-colors">Remember me</span>
                   </label>
-                  <button type="button" className="text-sm text-amber hover:text-amber-hover transition-colors">Forgot password?</button>
+                  <button 
+                    type="button" 
+                    onClick={handleForgotPassword}
+                    className="text-sm text-amber hover:text-amber-hover transition-colors"
+                  >
+                    Forgot password?
+                  </button>
                 </div>
 
                 <button 

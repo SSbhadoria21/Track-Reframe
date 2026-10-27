@@ -1,3 +1,4 @@
+
 "use client";
 
 import { useState } from "react";
@@ -19,7 +20,7 @@ export function Wizard() {
   };
 
   return (
-    <div className="flex flex-col h-[600px]">
+    <div className="flex flex-col h-150">
       {/* FILM STRIP PROGRESS BAR */}
       <div className="h-16 flex items-center px-8 border-b border-white/10 gap-2">
         {[1, 2, 3].map((i) => (
@@ -44,7 +45,7 @@ export function Wizard() {
                   <button
                     key={genre}
                     onClick={() => toggleGenre(genre)}
-                    className={`h-[110px] rounded-xl flex items-center justify-center font-bold text-lg transition-all ${
+                    className={`h-27.5 rounded-xl flex items-center justify-center font-bold text-lg transition-all ${
                       isSelected 
                         ? "border-2 border-amber bg-amber/10 text-amber glow-amber" 
                         : "border border-white/10 bg-[#0D0D12] text-text-primary hover:border-amber/50 hover:scale-[1.03]"
