@@ -115,6 +115,10 @@ Track Reframe is engineered for performance, scalability, and real-time interact
 
 6. Open [http://localhost:3000](http://localhost:3000) to see the application in action.
 
+### Tests
+
+Run the unit tests once with `npm test`. Generate the coverage report with `npm run test:coverage`.
+
 ---
 
 ## 🎨 Design Philosophy

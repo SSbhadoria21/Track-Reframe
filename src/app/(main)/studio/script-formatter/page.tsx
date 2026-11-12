@@ -8,7 +8,7 @@ import { exportScreenplayPDF } from "./pdf-export";
 /* ─── Screenplay Parser (industry-standard detection) ─── */
 export type ParsedLine = { type: string; text: string };
 
-function parseScreenplay(text: string): ParsedLine[] {
+export function parseScreenplay(text: string): ParsedLine[] {
   if (!text.trim()) return [];
   const lines = text.split("\n");
   const parsed: ParsedLine[] = [];
@@ -118,7 +118,7 @@ function MetadataModal({ onSubmit, onSkip }: { onSubmit: (m: any) => void; onSki
 }
 
 /* ─── Detect if text looks like raw/rough (not screenplay) ─── */
-function isRoughText(text: string): boolean {
+export function isRoughText(text: string): boolean {
   if (!text || text.length < 50) return false;
   const trimmed = text.trim();
   const lines = trimmed.split("\n").filter(l => l.trim());
